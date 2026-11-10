@@ -4,5 +4,7 @@
 <dict>
     <key>NSMicrophoneUsageDescription</key>
     <string>OpenFlow requires microphone access to record audio for AI dictation.</string>
+    <key>NSSupportsAppNap</key>
+    <false/>
 </dict>
 </plist>
