@@ -23,7 +23,6 @@ export const FloatingPill: React.FC = () => {
     state: "idle",
   });
   const [rms, setRms] = useState<number>(0);
-  const [seconds, setSeconds] = useState<number>(0);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [themePref, setThemePref] = useState<string>("system");
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
@@ -72,7 +71,6 @@ export const FloatingPill: React.FC = () => {
     onDictationStateChanged((payload) => {
       setStatePayload(payload);
       if (payload.state === "recording") {
-        setSeconds(0);
         setIsHovered(false);
         playChime("start");
       } else if (
@@ -100,19 +98,6 @@ export const FloatingPill: React.FC = () => {
     };
   }, []);
 
-  // Timer while recording
-  useEffect(() => {
-    let timer: any;
-    if (statePayload.state === "recording") {
-      timer = setInterval(() => {
-        setSeconds((prev) => prev + 1);
-      }, 1000);
-    } else if (statePayload.state === "idle" || statePayload.state === "copied") {
-      setSeconds(0);
-    }
-    return () => clearInterval(timer);
-  }, [statePayload.state]);
-
   // Auto-dismiss timer for "copied" bubble (pauses while user hovers/scrolls)
   useEffect(() => {
     if (statePayload.state !== "copied" || isHovered) return;
@@ -122,22 +107,24 @@ export const FloatingPill: React.FC = () => {
     return () => clearTimeout(timeout);
   }, [statePayload.state, isHovered]);
 
-  const formatTimer = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${mins}:${s < 10 ? "0" : ""}${s}`;
-  };
-
   const currentState = statePayload.state;
+  const isHandsFree = Boolean(statePayload.is_hands_free);
 
   // Don't render anything when idle to avoid any residual visual flash
   if (currentState === "idle") {
     return null;
   }
 
+  const widthClass =
+    currentState === "copied"
+      ? "w-auto min-w-[200px] max-w-[440px] rounded-[18px] px-3.5 py-2.5"
+      : currentState === "error"
+      ? "w-auto min-w-[170px] max-w-[320px] rounded-full px-3.5 py-1.5"
+      : "w-fit rounded-full px-3.5 py-1.5";
+
   return (
-    <div className="w-full h-full flex items-end justify-center pb-2 px-1 bg-transparent select-none overflow-hidden">
-      {/* HUD Bubble Container (Fixed 310px width & constant 20px radius across all states so corners never snap) */}
+    <div className="w-full h-full flex items-end justify-center pb-2 px-2 bg-transparent select-none overflow-hidden">
+      {/* HUD Bubble Container */}
       <div
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -146,7 +133,7 @@ export const FloatingPill: React.FC = () => {
             stopDictation();
           }
         }}
-        className={`relative w-[310px] rounded-[20px] px-3.5 py-2 transition-[background-color,border-color,box-shadow] duration-200 shadow-2xl backdrop-blur-2xl border ${
+        className={`animate-pill-enter relative ${widthClass} transition-[width,max-width,border-radius,background-color,border-color,box-shadow,transform] duration-250 ease-out shadow-2xl backdrop-blur-2xl border ${
           currentState === "copied" ? "cursor-default" : "cursor-pointer"
         } ${
           currentState === "error"
@@ -162,125 +149,60 @@ export const FloatingPill: React.FC = () => {
             : "bg-[#101014]/95 border-white/15 shadow-black/50"
         }`}
       >
-        {/* State 1 & 2: RECORDING & PROCESSING (same bar width & structure) */}
+        {/* State 1 & 2: RECORDING & PROCESSING */}
         {(currentState === "recording" || currentState === "processing") && (
-          <div className="flex items-center justify-between w-full gap-2">
-            {/* Recording indicator dot & App Name */}
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="relative flex h-2.5 w-2.5">
-                {currentState === "recording" && (
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-                )}
-                <span
-                  className={`relative inline-flex rounded-full h-2.5 w-2.5 transition-colors duration-200 ${
-                    currentState === "recording" ? "bg-red-500" : "bg-neutral-400"
+          <div className="flex items-center gap-2.5 h-6">
+            {/* Morphing Speaking -> Loading Waveform (Constant Width) */}
+            <AudioWaveform
+              rms={rms}
+              state={currentState}
+              barCount={9}
+              barColor={
+                currentState === "processing"
+                  ? isLight
+                    ? "bg-purple-600"
+                    : "bg-purple-400"
+                  : isLight
+                  ? "bg-zinc-900"
+                  : "bg-white"
+              }
+            />
+
+            {/* Square stop button (only in double-click hands-free mode while recording) */}
+            {currentState === "recording" && isHandsFree && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stopDictation();
+                }}
+                title="Stop & Transcribe"
+                className={`w-4 h-4 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95 shrink-0 ${
+                  isLight
+                    ? "bg-zinc-900 text-white hover:bg-zinc-700"
+                    : "bg-white text-black hover:bg-neutral-200"
+                }`}
+              >
+                <Square
+                  className={`w-1.5 h-1.5 ${
+                    isLight ? "fill-white text-white" : "fill-black text-black"
                   }`}
                 />
-              </span>
-
-              <span
-                className={`text-[11px] font-medium truncate max-w-[75px] ${
-                  isLight ? "text-zinc-700" : "text-neutral-300"
-                }`}
-              >
-                {statePayload.target_app || "Active App"}
-              </span>
-            </div>
-
-            {/* Audio Waveform */}
-            <div className="flex-1 flex justify-center px-1 min-w-[75px]">
-              <AudioWaveform
-                rms={rms}
-                isRecording={currentState === "recording"}
-                barCount={14}
-                barColor={isLight ? "bg-zinc-900" : "bg-white"}
-              />
-            </div>
-
-            {/* Timer & Right-Hand Control (Stop button -> Loading Spinner) */}
-            <div
-              className="flex items-center gap-2 shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <span
-                className={`text-[11px] font-mono ${
-                  isLight ? "text-zinc-500" : "text-neutral-400"
-                }`}
-              >
-                {formatTimer(seconds)}
-              </span>
-
-              <div className="w-5 h-5 flex items-center justify-center">
-                {currentState === "recording" ? (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      stopDictation();
-                    }}
-                    title="Stop & Transcribe"
-                    className={`w-5 h-5 rounded-full flex items-center justify-center transition-colors cursor-pointer shadow-sm ${
-                      isLight
-                        ? "bg-zinc-900 text-white hover:bg-zinc-700"
-                        : "bg-white text-black hover:bg-neutral-200"
-                    }`}
-                  >
-                    <Square
-                      className={`w-2.5 h-2.5 ${
-                        isLight ? "fill-white text-white" : "fill-black text-black"
-                      }`}
-                    />
-                  </button>
-                ) : (
-                  <svg
-                    className={`w-4 h-4 animate-spin ${
-                      isLight ? "text-zinc-800" : "text-white/90"
-                    }`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="9"
-                      stroke="currentColor"
-                      strokeOpacity="0.2"
-                      strokeWidth="2.5"
-                    />
-                    <path
-                      d="M21 12a9 9 0 0 0-9-9"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                )}
-              </div>
-            </div>
+              </button>
+            )}
           </div>
         )}
 
-        {/* Expandable Recorded Text Area (animates smoothly from 0fr -> 1fr when entering "copied") */}
-        <div
-          className={`grid transition-[grid-template-rows,opacity] duration-250 ease-out ${
-            currentState === "copied" && statePayload.last_text
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0 pointer-events-none"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <div
-              className={`max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-[18.5px] break-words select-text border-b mb-1.5 ${
-                isLight
-                  ? "text-zinc-800 border-zinc-200/80"
-                  : "text-neutral-100 border-white/10"
-              }`}
+        {/* Expandable Recorded Text Area for "copied" state */}
+        {currentState === "copied" && statePayload.last_text && (
+          <div className="max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10">
+            <span
+              className={isLight ? "text-zinc-800" : "text-neutral-100"}
             >
               {statePayload.last_text}
-            </div>
+            </span>
           </div>
-        </div>
+        )}
 
         {/* State 3: SAVED TO CLIPBOARD Footer */}
         {currentState === "copied" && (
@@ -298,10 +220,10 @@ export const FloatingPill: React.FC = () => {
 
         {/* State 4: ERROR */}
         {currentState === "error" && (
-          <div className="flex items-center justify-between w-full py-0.5">
-            <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center justify-between w-full py-0.5 gap-2">
+            <div className="flex items-center gap-1.5 truncate">
               <AlertCircle
-                className={`w-4 h-4 shrink-0 ${
+                className={`w-3.5 h-3.5 shrink-0 ${
                   isLight ? "text-red-500" : "text-red-400"
                 }`}
               />
@@ -319,7 +241,7 @@ export const FloatingPill: React.FC = () => {
                 e.stopPropagation();
                 cancelDictation();
               }}
-              className={`p-1 cursor-pointer ${
+              className={`p-1 cursor-pointer shrink-0 ${
                 isLight
                   ? "text-zinc-500 hover:text-zinc-800"
                   : "text-neutral-400 hover:text-white"

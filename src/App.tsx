@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Sidebar, TabType } from "./components/Sidebar";
 import { DictationView } from "./components/DictationView";
 import { DictionaryView } from "./components/DictionaryView";
 import { SnippetsView } from "./components/SnippetsView";
 import { SettingsView } from "./components/SettingsView";
 import { FloatingPill } from "./components/FloatingPill";
+import { OnboardingModal } from "./components/OnboardingModal";
 import {
   checkPermissions,
   getAppSettings,
@@ -51,11 +52,16 @@ export function App() {
     auto_paste: true,
     sound_effects: true,
     pill_enabled: true,
+    pause_media: true,
+    mute_audio: true,
     theme: "system",
   });
   const [audioDevices, setAudioDevices] = useState<string[]>([]);
   const [permissions, setPermissions] = useState<PermissionsStatus | null>(null);
   const [dictationState, setDictationState] = useState<string>("idle");
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [hasDismissedOnboarding, setHasDismissedOnboarding] = useState<boolean>(false);
+  const [targetSettingsSection, setTargetSettingsSection] = useState<string | null>(null);
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
     () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true
   );
@@ -87,6 +93,17 @@ export function App() {
     }
   }, [themePref, resolvedTheme]);
 
+  const handleRefreshPermissions = useCallback(async () => {
+    try {
+      const perms = await checkPermissions();
+      setPermissions(perms);
+      return perms;
+    } catch (e) {
+      console.error("Failed to check permissions:", e);
+      return null;
+    }
+  }, []);
+
   const loadData = async () => {
     try {
       const [hist, dict, snip, sett, devs, perms] = await Promise.all([
@@ -95,7 +112,7 @@ export function App() {
         getSnippets().catch(() => []),
         getAppSettings().catch(() => settings),
         getAudioDevices().catch(() => []),
-        checkPermissions().catch(() => ({ accessibility: true, microphone: true })),
+        checkPermissions().catch(() => ({ accessibility: true, microphone: true, input_monitoring: true })),
       ]);
 
       setHistory(hist);
@@ -104,6 +121,18 @@ export function App() {
       setSettings(sett);
       setAudioDevices(devs);
       setPermissions(perms);
+
+      const isMissingSetup =
+        !sett.gemini_api_key?.trim() ||
+        !perms.microphone ||
+        !perms.accessibility ||
+        !perms.input_monitoring;
+
+      if (isMissingSetup && !hasDismissedOnboarding) {
+        setShowOnboarding(true);
+      } else if (!isMissingSetup) {
+        setShowOnboarding(false);
+      }
     } catch (e) {
       console.error("Failed to load initial data:", e);
     }
@@ -133,6 +162,24 @@ export function App() {
     };
   }, []);
 
+  const handleDragMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) {
+      const target = e.target as HTMLElement;
+      if (target.closest("button, input, select, textarea, a, [role='button'], kbd, [data-no-drag]")) {
+        return;
+      }
+      getCurrentWebviewWindow().startDragging().catch((err) => {
+        console.warn("[Window Drag] startDragging failed:", err);
+      });
+    }
+  };
+
+  const handleDoubleClickTitlebar = () => {
+    getCurrentWebviewWindow().toggleMaximize().catch((err) => {
+      console.warn("[Window Drag] toggleMaximize failed:", err);
+    });
+  };
+
   return (
     <div
       className={`app-shell theme-${resolvedTheme} flex flex-col h-screen w-screen overflow-hidden bg-[#0e0e11] text-[#f4f4f7] select-none`}
@@ -140,7 +187,9 @@ export function App() {
       {/* Dedicated macOS Titlebar / Drag Region so Close, Minimize, and Expand buttons never overlap content */}
       <div
         data-tauri-drag-region
-        className="app-titlebar h-9 w-full shrink-0 flex items-center justify-center bg-[#0e0e11]"
+        onMouseDown={handleDragMouseDown}
+        onDoubleClick={handleDoubleClickTitlebar}
+        className="app-titlebar h-9 w-full shrink-0 flex items-center justify-center bg-[#0e0e11] cursor-default select-none"
       />
 
       {/* Main Content Area below traffic lights */}
@@ -148,7 +197,18 @@ export function App() {
         {/* Sidebar matching Wispr Flow */}
         <Sidebar
           currentTab={currentTab}
-          onSelectTab={setCurrentTab}
+          onSelectTab={(tab) => {
+            setTargetSettingsSection(null);
+            setCurrentTab(tab);
+            if (tab === "settings") {
+              getAudioDevices().then((devs) => setAudioDevices(devs)).catch(() => {});
+            }
+          }}
+          onNavigateSection={(section) => {
+            setTargetSettingsSection(section);
+            setCurrentTab("settings");
+            getAudioDevices().then((devs) => setAudioDevices(devs)).catch(() => {});
+          }}
           settings={settings}
           permissions={permissions}
           dictationState={dictationState}
@@ -167,6 +227,7 @@ export function App() {
                   dictationState={dictationState}
                   onStartDictation={() => startDictation()}
                   onStopDictation={() => stopDictation()}
+                  permissions={permissions}
                 />
               )}
 
@@ -191,9 +252,12 @@ export function App() {
                   audioDevices={audioDevices}
                   permissions={permissions}
                   onUpdateSettings={setSettings}
-                  onRefreshPermissions={async () => {
-                    const perms = await checkPermissions();
-                    setPermissions(perms);
+                  onRefreshPermissions={handleRefreshPermissions}
+                  targetSection={targetSettingsSection}
+                  onClearTargetSection={() => setTargetSettingsSection(null)}
+                  onOpenOnboarding={() => {
+                    setHasDismissedOnboarding(false);
+                    setShowOnboarding(true);
                   }}
                 />
               )}
@@ -201,6 +265,19 @@ export function App() {
           </div>
         </div>
       </div>
+
+      {showOnboarding && (
+        <OnboardingModal
+          permissions={permissions}
+          settings={settings}
+          onRefreshPermissions={handleRefreshPermissions}
+          onComplete={() => {
+            setHasDismissedOnboarding(true);
+            setShowOnboarding(false);
+          }}
+          onUpdateSettings={setSettings}
+        />
+      )}
     </div>
   );
 }
