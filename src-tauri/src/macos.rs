@@ -283,6 +283,17 @@ pub fn inject_text_at_cursor(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Configures the main application window:
+/// Explicitly disables dragging by window background so only the top bar is draggable.
+pub fn configure_main_window(window: &tauri::WebviewWindow) {
+    if let Ok(ns_win) = window.ns_window() {
+        let ns_win = ns_win as id;
+        unsafe {
+            let _: () = msg_send![ns_win, setMovableByWindowBackground: false];
+        }
+    }
+}
+
 /// Configures the floating pill window on macOS so it:
 /// 1. Floats on all spaces / virtual desktops (NSWindowCollectionBehaviorCanJoinAllSpaces = 1 << 0)
 /// 2. Stationary across space switches (NSWindowCollectionBehaviorStationary = 1 << 4)
@@ -313,8 +324,19 @@ pub fn configure_pill_window(pill: &tauri::WebviewWindow) {
 }
 
 /// Shows the floating pill on whatever space the user is currently looking at,
-/// without activating OpenFlow or switching spaces to the main window.
+/// positioned cleanly near the bottom of the active screen.
 pub fn show_pill_without_activation(pill: &tauri::WebviewWindow) {
+    if let Ok(Some(monitor)) = pill.current_monitor().or_else(|_| pill.primary_monitor()) {
+        let scale = monitor.scale_factor();
+        let pill_w = 500.0f64;
+        let pill_h = 220.0f64;
+        let screen_w = monitor.size().width as f64 / scale;
+        let screen_h = monitor.size().height as f64 / scale;
+        let x = (screen_w - pill_w) / 2.0;
+        let y = screen_h - pill_h - 12.0;
+        let _ = pill.set_position(tauri::LogicalPosition::new(x, y));
+    }
+
     let pill_clone = pill.clone();
     let _ = pill.run_on_main_thread(move || {
         if let Ok(ns_win) = pill_clone.ns_window() {
@@ -366,8 +388,8 @@ pub fn prompt_accessibility_permission() {
 
     unsafe {
         let key = NSString::alloc(nil).init_str("AXTrustedCheckOptionPrompt");
-        let dict: id = msg_send![class!(NSDictionary), dictionaryWithObject:class!(NSNumber)
-            forKey:key];
+        let yes_val: id = msg_send![class!(NSNumber), numberWithBool: true];
+        let dict: id = msg_send![class!(NSDictionary), dictionaryWithObject:yes_val forKey:key];
         AXIsProcessTrustedWithOptions(dict);
     }
 }
@@ -401,6 +423,63 @@ pub fn open_microphone_settings() {
         .spawn();
 }
 
+pub fn open_input_monitoring_settings() {
+    let _ = Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")
+        .spawn();
+}
+
+/// Check if Input Monitoring (device control and keystroke access) is granted
+pub fn is_input_monitoring_granted() -> bool {
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGPreflightListenEventAccess() -> bool;
+    }
+    unsafe {
+        if CGPreflightListenEventAccess() {
+            return true;
+        }
+        // If event tap is currently active, or process is trusted for Accessibility, or
+        // a probe event tap can be created, macOS is actively permitting key listening.
+        if is_accessibility_granted()
+            || crate::hotkey::is_tap_active()
+            || crate::hotkey::can_create_event_tap()
+        {
+            return true;
+        }
+        false
+    }
+}
+
+/// Prompt macOS Input Monitoring permission dialog
+pub fn prompt_input_monitoring_permission() -> bool {
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGRequestListenEventAccess() -> bool;
+    }
+    unsafe { CGRequestListenEventAccess() }
+}
+
 pub fn open_url_in_browser(url: &str) {
     let _ = Command::new("open").arg(url).spawn();
 }
+
+/// Disables macOS App Nap and background process throttling so OpenFlow continues
+/// running hotkey listeners and audio recording at full fidelity even when all windows are closed/hidden.
+pub fn disable_app_nap() {
+    unsafe {
+        let process_info: id = msg_send![class!(NSProcessInfo), processInfo];
+        if process_info != nil {
+            // NSActivityUserInitiated (0x00FFFFFFULL) | NSActivityLatencyCritical (0xFF00000000ULL)
+            let options: u64 = 0x00FFFFFF | 0xFF00000000;
+            let reason = NSString::alloc(nil)
+                .init_str("OpenFlow continuous background dictation and global hotkey listener");
+            let activity: id =
+                msg_send![process_info, beginActivityWithOptions:options reason:reason];
+            if activity != nil {
+                let _: () = msg_send![activity, retain];
+            }
+        }
+    }
+}
+
