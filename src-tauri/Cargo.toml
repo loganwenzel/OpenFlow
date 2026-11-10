@@ -30,6 +30,7 @@ objc = "0.2"
 cocoa = "0.26"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
+libc = "0.2"
 
 [profile.release]
 codegen-units = 1
@@ -37,4 +38,7 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[patch.crates-io]
+cpal = { path = "./vendor/cpal" }
 
