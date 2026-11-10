@@ -7,6 +7,8 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
+type AudioRecordingResult = Result<(Vec<u8>, u32, i16, f32), String>;
+
 enum AudioCommand {
     Start {
         device_name: Option<String>,
@@ -14,7 +16,7 @@ enum AudioCommand {
         resp: Sender<Result<(), String>>,
     },
     Stop {
-        resp: Sender<Result<(Vec<u8>, u32), String>>,
+        resp: Sender<AudioRecordingResult>,
     },
     Cancel,
     ListDevices {
@@ -192,7 +194,10 @@ impl AudioRecorder {
                     }
                     AudioCommand::Stop { resp } => {
                         flag_clone.store(false, Ordering::SeqCst);
-                        _active_stream = None;
+                        if let Some(stream) = _active_stream.take() {
+                            let _ = stream.pause();
+                            drop(stream);
+                        }
 
                         let duration_ms = start_time
                             .map(|t| t.elapsed().as_millis() as u32)
@@ -212,6 +217,23 @@ impl AudioRecorder {
                         let target_rate = 16000;
                         let resampled = resample_linear(&audio_samples, source_sample_rate, target_rate);
 
+                        // Compute peak amplitude and average RMS to detect pure silence/noise
+                        let mut max_peak: i16 = 0;
+                        let mut sum_sq: f64 = 0.0;
+                        for &s in &resampled {
+                            let abs_s = s.abs();
+                            if abs_s > max_peak {
+                                max_peak = abs_s;
+                            }
+                            let norm = s as f64 / 32768.0;
+                            sum_sq += norm * norm;
+                        }
+                        let rms = if !resampled.is_empty() {
+                            (sum_sq / resampled.len() as f64).sqrt() as f32
+                        } else {
+                            0.0
+                        };
+
                         let spec = WavSpec {
                             channels: 1,
                             sample_rate: target_rate,
@@ -229,7 +251,7 @@ impl AudioRecorder {
 
                         match write_res {
                             Ok(_) => {
-                                let _ = resp.send(Ok((cursor.into_inner(), duration_ms)));
+                                let _ = resp.send(Ok((cursor.into_inner(), duration_ms, max_peak, rms)));
                             }
                             Err(e) => {
                                 let _ = resp.send(Err(format!("WAV encoding error: {}", e)));
@@ -238,7 +260,10 @@ impl AudioRecorder {
                     }
                     AudioCommand::Cancel => {
                         flag_clone.store(false, Ordering::SeqCst);
-                        _active_stream = None;
+                        if let Some(stream) = _active_stream.take() {
+                            let _ = stream.pause();
+                            drop(stream);
+                        }
                         current_buffer = None;
                     }
                     AudioCommand::ListDevices { resp } => {
@@ -302,7 +327,7 @@ impl AudioRecorder {
             .map_err(|e| format!("Audio thread response error: {}", e))?
     }
 
-    pub fn stop_recording(&self) -> Result<(Vec<u8>, u32), String> {
+    pub fn stop_recording(&self) -> Result<(Vec<u8>, u32, i16, f32), String> {
         let (resp_tx, resp_rx) = channel();
         self.tx
             .send(AudioCommand::Stop { resp: resp_tx })
