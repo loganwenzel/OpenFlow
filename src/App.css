@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #0c0c0e;
+    --bg-card: #131316;
+    --bg-card-hover: #19191d;
+    --border-subtle: #1e1e24;
+    --border-active: #32323c;
+    --text-primary: #f5f5f7;
+    --text-secondary: #909099;
+    --text-muted: #5e5e68;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: transparent;
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+.font-serif-display {
+  font-family: "Newsreader", "Instrument Serif", Georgia, serif;
+  font-style: italic;
+}
+
+.font-serif-normal {
+  font-family: "Newsreader", "Instrument Serif", Georgia, serif;
+}
+
+/* Beautiful custom macOS dark scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #25252c;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b3b45;
+  background-clip: padding-box;
+}
+
+/* Warm blur backdrop for hero banners */
+.hero-gradient-warm {
+  background: linear-gradient(135deg, rgba(46, 26, 22, 0.85) 0%, rgba(29, 21, 33, 0.8) 50%, rgba(20, 19, 26, 0.9) 100%);
+}
+
+.hero-photo-ambient {
+  background: radial-gradient(circle at 80% 30%, rgba(220, 110, 60, 0.18) 0%, rgba(140, 60, 160, 0.12) 40%, transparent 70%);
+}
+
+/* ==========================================================================
+   Light Theme Overrides (.theme-light)
+   ========================================================================== */
+.theme-light {
+  background-color: #f3f3f6 !important;
+  color: #18181b !important;
+}
+
+.theme-light .app-titlebar,
+.theme-light .app-sidebar {
+  background-color: #f3f3f6 !important;
+  border-color: #e4e4e9 !important;
+}
+
+.theme-light .brand-bar {
+  background-color: #18181b !important;
+}
+
+.theme-light .brand-title {
+  color: #18181b !important;
+}
+
+.theme-light .nav-item {
+  color: #52525b !important;
+}
+
+.theme-light .nav-item:hover {
+  background-color: #e8e8ee !important;
+  color: #18181b !important;
+}
+
+.theme-light .nav-item-active {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+.theme-light .sidebar-dock {
+  background-color: #ffffff !important;
+  border-color: #e2e2e8 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.theme-light .hotkey-badge {
+  background-color: #f4f4f7 !important;
+  border-color: #dcdce4 !important;
+  color: #27272a !important;
+}
+
+.theme-light .status-label {
+  color: #3f3f46 !important;
+}
+
+.theme-light .app-canvas,
+.theme-light [class*="bg-[#111114]"] {
+  background-color: #ffffff !important;
+  border-color: #e4e4e9 !important;
+}
+
+.theme-light [class*="bg-[#121216]"],
+.theme-light [class*="bg-[#131317]"],
+.theme-light [class*="bg-[#141418]"],
+.theme-light [class*="bg-[#15151a]"] {
+  background-color: #f8f8fa !important;
+  border-color: #e4e4ec !important;
+}
+
+.theme-light [class*="bg-[#16161b]"],
+.theme-light [class*="bg-[#18181e]"],
+.theme-light [class*="bg-[#18181f]"],
+.theme-light [class*="bg-[#181820]"],
+.theme-light [class*="bg-[#1a1a20]"],
+.theme-light [class*="bg-[#1d1d24]"],
+.theme-light [class*="bg-[#202026]"],
+.theme-light [class*="bg-[#24242e]"],
+.theme-light [class*="bg-[#242430]"] {
+  background-color: #f1f1f5 !important;
+  border-color: #dcdce5 !important;
+  color: #18181b !important;
+}
+
+.theme-light [class*="bg-[#1f1d2b]"] {
+  background-color: #f3effb !important;
+  border-color: #a855f7 !important;
+}
+
+/* Keep hero banner rich warm dark in light mode and preserve its light text */
+.theme-light .hero-banner {
+  background-color: #231e24 !important;
+  border-color: #382f39 !important;
+}
+
+.theme-light .hero-banner .text-white {
+  color: #ffffff !important;
+}
+
+.theme-light .hero-banner [class*="bg-[#181820]"] {
+  background-color: #282430 !important;
+  border-color: #3c3648 !important;
+  color: #d4d0e0 !important;
+}
+
+.theme-light .hero-banner [class*="text-[#dedee5]"] {
+  color: #dedee5 !important;
+}
+
+.theme-light .hero-banner [class*="text-[#9a9aa8]"] {
+  color: #b8b4c4 !important;
+}
+
+.theme-light [class*="border-[#1c1c22]"],
+.theme-light [class*="border-[#1c1c24]"],
+.theme-light [class*="border-[#1e1e26]"],
+.theme-light [class*="border-[#191920]"],
+.theme-light [class*="border-[#1f1f26]"],
+.theme-light [class*="border-[#202026]"],
+.theme-light [class*="border-[#212128]"],
+.theme-light [class*="border-[#24242e]"] {
+  border-color: #e5e5ec !important;
+}
+
+.theme-light [class*="divide-[#17171d]"] > :not([hidden]) ~ :not([hidden]),
+.theme-light [class*="divide-[#1c1c24]"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: #ebebf0 !important;
+}
+
+.theme-light .text-white:not([class*="bg-red-"]):not([class*="bg-purple-"]) {
+  color: #18181b !important;
+}
+
+.theme-light [class*="text-[#dedee5]"],
+.theme-light [class*="text-[#e4e4eb]"],
+.theme-light [class*="text-[#ededf0]"],
+.theme-light .text-neutral-200,
+.theme-light .text-neutral-300 {
+  color: #27272a !important;
+}
+
+.theme-light [class*="text-[#8c8c97]"],
+.theme-light [class*="text-[#888892]"],
+.theme-light [class*="text-[#787886]"],
+.theme-light [class*="text-[#7a7a88]"],
+.theme-light [class*="text-[#7b7b8a]"],
+.theme-light [class*="text-[#7d7d8e]"],
+.theme-light [class*="text-[#9a9aa8]"],
+.theme-light [class*="text-[#a0a0ae]"] {
+  color: #646470 !important;
+}
+
+/* Primary black CTA buttons in dark mode become sleek dark buttons in light mode */
+.theme-light button.bg-white {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
+
+.theme-light button.bg-white svg {
+  color: #ffffff !important;
+}
+
+.theme-light button.bg-white:hover {
+  background-color: #27272a !important;
+}
+
+.theme-light ::-webkit-scrollbar-thumb {
+  background: #d1d1db;
+}
+
+.theme-light ::-webkit-scrollbar-thumb:hover {
+  background: #b4b4c2;
+}
