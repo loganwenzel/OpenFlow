@@ -40,12 +40,15 @@ export interface AppSettings {
   auto_paste: boolean;
   sound_effects: boolean;
   pill_enabled: boolean;
+  pause_media?: boolean;
+  mute_audio?: boolean;
   theme?: string; // "system" | "light" | "dark"
 }
 
 export interface PermissionsStatus {
   accessibility: boolean;
   microphone: boolean;
+  input_monitoring: boolean;
 }
 
 export interface DictationStatePayload {
@@ -54,4 +57,5 @@ export interface DictationStatePayload {
   message?: string | null;
   duration_ms?: number | null;
   last_text?: string | null;
+  is_hands_free?: boolean | null;
 }

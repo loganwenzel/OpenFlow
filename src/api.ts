@@ -144,7 +144,7 @@ export async function getAudioDevices(): Promise<string[]> {
 }
 
 export async function checkPermissions(): Promise<PermissionsStatus> {
-  const fallback = { accessibility: true, microphone: true };
+  const fallback = { accessibility: true, microphone: true, input_monitoring: true };
   return await safeInvoke("check_permissions", undefined, fallback);
 }
 
@@ -152,8 +152,12 @@ export async function requestAccessibilityPermission(): Promise<void> {
   return await safeInvoke("request_accessibility_permission");
 }
 
+export async function requestInputMonitoringPermission(): Promise<void> {
+  return await safeInvoke("request_input_monitoring_permission");
+}
+
 export async function openSystemSettings(
-  target: "accessibility" | "microphone" | string
+  target: "accessibility" | "microphone" | "input_monitoring" | string
 ): Promise<void> {
   return await safeInvoke("open_system_settings", { target });
 }

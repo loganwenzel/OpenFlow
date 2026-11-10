@@ -10,8 +10,9 @@ import {
   Square,
   Sparkles,
   AppWindow,
+  ShieldAlert,
 } from "lucide-react";
-import { Dictation } from "../types";
+import { Dictation, PermissionsStatus } from "../types";
 import { deleteHistory } from "../api";
 
 interface DictationViewProps {
@@ -21,6 +22,7 @@ interface DictationViewProps {
   dictationState: string;
   onStartDictation: () => void;
   onStopDictation: () => void;
+  permissions?: PermissionsStatus | null;
 }
 
 export const DictationView: React.FC<DictationViewProps> = ({
@@ -30,6 +32,7 @@ export const DictationView: React.FC<DictationViewProps> = ({
   dictationState,
   onStartDictation,
   onStopDictation,
+  permissions,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -113,6 +116,32 @@ export const DictationView: React.FC<DictationViewProps> = ({
     <div className="flex-1 min-h-0 flex overflow-hidden bg-[#111114]">
       {/* Main Activity Area with guaranteed scrolling */}
       <div className="flex-1 min-h-0 flex flex-col overflow-y-auto px-9 py-6 pb-28">
+        {/* Missing Permissions Banner */}
+        {permissions && (!permissions.microphone || !permissions.accessibility || !permissions.input_monitoring) && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5 text-amber-200">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Missing macOS permissions (
+                {[
+                  !permissions.microphone && "Microphone",
+                  !permissions.input_monitoring && "Input Monitoring",
+                  !permissions.accessibility && "Accessibility",
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                ). Required for global hotkeys and auto-paste across apps.
+              </span>
+            </div>
+            <button
+              onClick={() => onNavigateTab("settings")}
+              className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-medium whitespace-nowrap cursor-pointer transition-colors"
+            >
+              Open Permissions
+            </button>
+          </div>
+        )}
+
         {/* Welcome Header */}
         <div className="flex items-center justify-between mb-6 shrink-0">
           <div>
