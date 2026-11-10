@@ -25,9 +25,21 @@ function formatKeyLabel(rawKey: string): string {
     .trim();
 }
 
+function formatMicLabel(rawDev?: string | null): string {
+  if (!rawDev || rawDev === "default" || rawDev.toLowerCase() === "default") {
+    return "Default";
+  }
+  return rawDev
+    .replace(/^Default macOS System Microphone$/i, "Default")
+    .replace(/ Microphone$/i, "")
+    .replace(/ \(Built-in\)$/i, "")
+    .trim() || rawDev;
+}
+
 interface SidebarProps {
   currentTab: TabType;
   onSelectTab: (tab: TabType) => void;
+  onNavigateSection?: (section: "hotkey" | "model" | "mic") => void;
   settings: AppSettings | null;
   permissions: PermissionsStatus | null;
   dictationState: string;
@@ -36,11 +48,13 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onSelectTab,
+  onNavigateSection,
   settings,
   permissions,
   dictationState,
 }) => {
-  const isHealthy = permissions?.accessibility && permissions?.microphone;
+  const isHealthy =
+    Boolean(permissions?.accessibility && permissions?.microphone && permissions?.input_monitoring);
 
   return (
     <aside className="app-sidebar w-56 shrink-0 h-full flex flex-col justify-between bg-[#0e0e11] border-r border-[#1a1a20] px-3 pb-3 pt-1 select-none">
@@ -48,15 +62,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex flex-col gap-5">
         {/* Brand Header (positioned cleanly below the macOS traffic light drag bar) */}
         <div className="flex items-center gap-2.5 px-3 pt-1">
-          {/* Soundwave Logo Icon */}
-          <div className="flex items-center gap-[2.5px] h-5">
-            <div className="brand-bar w-[3px] h-3 bg-white rounded-full" />
-            <div className="brand-bar w-[3px] h-5 bg-white rounded-full" />
-            <div className="brand-bar w-[3px] h-4 bg-white rounded-full" />
-            <div className="brand-bar w-[3px] h-2 bg-white rounded-full" />
-          </div>
-          <span className="brand-title text-[17px] font-semibold text-white tracking-tight">
-            Flow
+          <img
+            src="/app-icon.png"
+            alt="OpenFlow"
+            className="w-6 h-6 rounded-lg object-contain shadow-sm"
+          />
+          <span className="brand-title text-[16px] font-semibold text-white tracking-tight">
+            OpenFlow
           </span>
         </div>
 
@@ -106,16 +118,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom-Left Unified Dock */}
       <div className="flex flex-col gap-2">
         <div className="sidebar-dock rounded-2xl bg-[#141418] border border-[#202026] overflow-hidden flex flex-col">
-          {/* Hotkey & Model Info */}
-          <div className="p-3 text-xs flex flex-col gap-2.5">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[#888892] font-medium shrink-0">Hotkey</span>
+          {/* Hotkey, Model & Mic Quick-Jump Info */}
+          <div className="p-2.5 text-xs flex flex-col gap-1">
+            {/* Hotkey Row */}
+            <button
+              type="button"
+              onClick={() => (onNavigateSection ? onNavigateSection("hotkey") : onSelectTab("settings"))}
+              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-[#1c1c24] transition-colors cursor-pointer text-left group"
+              title="Click to edit hotkey in settings"
+            >
+              <span className="text-[#888892] group-hover:text-neutral-200 font-medium shrink-0 transition-colors">
+                Hotkey
+              </span>
               <div className="flex flex-wrap items-center justify-end gap-1">
                 {(settings?.hotkey_key || "Left Control (⌃) + Left Shift (⇧)")
                   .split(" + ")
                   .map((part, idx, arr) => (
                     <React.Fragment key={idx}>
-                      <kbd className="hotkey-badge font-sans text-[11px] font-medium bg-[#1d1d24] text-neutral-200 px-1.5 py-0.5 rounded-md border border-[#2b2b35] shadow-2xs">
+                      <kbd className="hotkey-badge font-sans text-[11px] font-medium bg-[#1d1d24] group-hover:bg-[#252530] text-neutral-200 px-1.5 py-0.5 rounded-md border border-[#2b2b35] group-hover:border-[#3b3b48] shadow-2xs transition-colors">
                         {formatKeyLabel(part)}
                       </kbd>
                       {idx < arr.length - 1 && (
@@ -124,17 +144,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </React.Fragment>
                   ))}
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[#888892] font-medium shrink-0">Model</span>
-              <span className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium truncate">
+            {/* Model Row */}
+            <button
+              type="button"
+              onClick={() => (onNavigateSection ? onNavigateSection("model") : onSelectTab("settings"))}
+              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-[#1c1c24] transition-colors cursor-pointer text-left group"
+              title="Click to edit AI model in settings"
+            >
+              <span className="text-[#888892] group-hover:text-neutral-200 font-medium shrink-0 transition-colors">
+                Model
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-emerald-500 group-hover:text-emerald-400 font-medium truncate transition-colors">
                 <Sparkles className="w-3 h-3 shrink-0" />
-                <span className="truncate">
+                <span className="truncate max-w-[105px]">
                   {settings?.model?.replace("gemini-", "") || "flash-lite"}
                 </span>
               </span>
-            </div>
+            </button>
+
+            {/* Microphone Input Row */}
+            <button
+              type="button"
+              onClick={() => (onNavigateSection ? onNavigateSection("mic") : onSelectTab("settings"))}
+              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-[#1c1c24] transition-colors cursor-pointer text-left group"
+              title={`Click to edit microphone input in settings (${settings?.mic_device || "Default"})`}
+            >
+              <span className="text-[#888892] group-hover:text-neutral-200 font-medium shrink-0 transition-colors">
+                Mic
+              </span>
+              <span className="flex items-center gap-1 text-[11px] text-sky-400 group-hover:text-sky-300 font-medium truncate transition-colors">
+                <Mic className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[105px]" title={settings?.mic_device || "Default"}>
+                  {formatMicLabel(settings?.mic_device)}
+                </span>
+              </span>
+            </button>
           </div>
 
           {/* Integrated Bottom-Left Settings Button */}
