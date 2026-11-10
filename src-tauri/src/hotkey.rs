@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Instant;
 
 pub struct HotkeyConfig {
     pub key_name: String, // "Left Control (⌃) + Left Shift (⇧)", etc.
@@ -81,19 +82,35 @@ extern "C" {
     fn CFRunLoopGetCurrent() -> *mut c_void;
     fn CFRunLoopAddSource(rl: *mut c_void, source: CFRunLoopSourceRef, mode: *const c_void);
     fn CFRunLoopRun();
+    fn CFRunLoopStop(rl: *mut c_void);
     fn CFRelease(cf: *mut c_void);
 
     static kCFRunLoopCommonModes: *const c_void;
+}
+
+static GLOBAL_HANDS_FREE_LOCKED: AtomicBool = AtomicBool::new(false);
+static GLOBAL_IS_RECORDING: AtomicBool = AtomicBool::new(false);
+static GLOBAL_IS_HOLDING: AtomicBool = AtomicBool::new(false);
+
+pub fn reset_hotkey_state() {
+    GLOBAL_HANDS_FREE_LOCKED.store(false, Ordering::SeqCst);
+    GLOBAL_IS_RECORDING.store(false, Ordering::SeqCst);
+    GLOBAL_IS_HOLDING.store(false, Ordering::SeqCst);
+}
+
+pub fn is_hands_free_locked() -> bool {
+    GLOBAL_HANDS_FREE_LOCKED.load(Ordering::SeqCst)
 }
 
 struct TapContext {
     get_config: Box<dyn Fn() -> HotkeyConfig + Send + Sync>,
     on_start: Arc<dyn Fn() + Send + Sync>,
     on_stop: Arc<dyn Fn() + Send + Sync>,
-    is_holding: Arc<AtomicBool>,
-    is_recording: Arc<AtomicBool>,
+    press_start_time: Mutex<Option<Instant>>,
+    last_release_time: Mutex<Option<Instant>>,
     pressed_keys: Mutex<HashSet<i64>>,
     port: Mutex<Option<CFMachPortRef>>,
+    current_press_id: Arc<AtomicU64>,
 }
 
 extern "C" fn event_tap_callback(
@@ -154,73 +171,120 @@ extern "C" fn event_tap_callback(
             Err(_) => return event,
         };
 
-        // Clear any modifier keycodes whose modifier group flag is completely off
-        if (flags & FLAG_MASK_ALTERNATE) == 0 {
-            pressed.remove(&KEYCODE_LEFT_OPTION);
-            pressed.remove(&KEYCODE_RIGHT_OPTION);
-        }
-        if (flags & FLAG_MASK_CONTROL) == 0 {
-            pressed.remove(&KEYCODE_LEFT_CONTROL);
-            pressed.remove(&KEYCODE_RIGHT_CONTROL);
-        }
-        if (flags & FLAG_MASK_SHIFT) == 0 {
-            pressed.remove(&KEYCODE_LEFT_SHIFT);
-            pressed.remove(&KEYCODE_RIGHT_SHIFT);
-        }
-        if (flags & 0x00100000) == 0 {
-            pressed.remove(&54);
-            pressed.remove(&55);
-        }
-        if (flags & FLAG_MASK_FN) == 0 {
-            pressed.remove(&KEYCODE_FN);
-        }
-        if (flags & 0x00010000) == 0 {
-            pressed.remove(&57);
-        }
-
         match event_type {
             K_CG_EVENT_FLAGS_CHANGED => {
-                let is_mod_down = match keycode {
-                    KEYCODE_LEFT_CONTROL => {
-                        (flags & FLAG_MASK_CONTROL) != 0
-                            && ((flags & 0x0001) != 0 || !pressed.contains(&keycode))
+                // Shift keys (56 = Left Shift, 60 = Right Shift)
+                if (flags & FLAG_MASK_SHIFT) != 0 {
+                    let has_sub = (flags & 0x0006) != 0;
+                    if (flags & 0x0002) != 0
+                        || keycode == KEYCODE_LEFT_SHIFT
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_LEFT_SHIFT))
+                    {
+                        pressed.insert(KEYCODE_LEFT_SHIFT);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_LEFT_SHIFT);
                     }
-                    KEYCODE_RIGHT_CONTROL => {
-                        (flags & FLAG_MASK_CONTROL) != 0
-                            && ((flags & 0x2000) != 0 || !pressed.contains(&keycode))
+
+                    if (flags & 0x0004) != 0
+                        || keycode == KEYCODE_RIGHT_SHIFT
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_RIGHT_SHIFT))
+                    {
+                        pressed.insert(KEYCODE_RIGHT_SHIFT);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_RIGHT_SHIFT);
                     }
-                    KEYCODE_LEFT_SHIFT => {
-                        (flags & FLAG_MASK_SHIFT) != 0
-                            && ((flags & 0x0002) != 0 || !pressed.contains(&keycode))
-                    }
-                    KEYCODE_RIGHT_SHIFT => {
-                        (flags & FLAG_MASK_SHIFT) != 0
-                            && ((flags & 0x0004) != 0 || !pressed.contains(&keycode))
-                    }
-                    55 => {
-                        (flags & 0x00100000) != 0
-                            && ((flags & 0x0008) != 0 || !pressed.contains(&keycode))
-                    }
-                    54 => {
-                        (flags & 0x00100000) != 0
-                            && ((flags & 0x0010) != 0 || !pressed.contains(&keycode))
-                    }
-                    KEYCODE_LEFT_OPTION => {
-                        (flags & FLAG_MASK_ALTERNATE) != 0
-                            && ((flags & 0x0020) != 0 || !pressed.contains(&keycode))
-                    }
-                    KEYCODE_RIGHT_OPTION => {
-                        (flags & FLAG_MASK_ALTERNATE) != 0
-                            && ((flags & 0x0040) != 0 || !pressed.contains(&keycode))
-                    }
-                    KEYCODE_FN => (flags & FLAG_MASK_FN) != 0,
-                    57 => (flags & 0x00010000) != 0,
-                    _ => false,
-                };
-                if is_mod_down {
-                    pressed.insert(keycode);
                 } else {
-                    pressed.remove(&keycode);
+                    pressed.remove(&KEYCODE_LEFT_SHIFT);
+                    pressed.remove(&KEYCODE_RIGHT_SHIFT);
+                }
+
+                // Control keys (59 = Left Control, 62 = Right Control)
+                if (flags & FLAG_MASK_CONTROL) != 0 {
+                    let has_sub = (flags & 0x2001) != 0;
+                    if (flags & 0x0001) != 0
+                        || keycode == KEYCODE_LEFT_CONTROL
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_LEFT_CONTROL))
+                    {
+                        pressed.insert(KEYCODE_LEFT_CONTROL);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_LEFT_CONTROL);
+                    }
+
+                    if (flags & 0x2000) != 0
+                        || keycode == KEYCODE_RIGHT_CONTROL
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_RIGHT_CONTROL))
+                    {
+                        pressed.insert(KEYCODE_RIGHT_CONTROL);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_RIGHT_CONTROL);
+                    }
+                } else {
+                    pressed.remove(&KEYCODE_LEFT_CONTROL);
+                    pressed.remove(&KEYCODE_RIGHT_CONTROL);
+                }
+
+                // Option/Alt keys (58 = Left Option, 61 = Right Option)
+                if (flags & FLAG_MASK_ALTERNATE) != 0 {
+                    let has_sub = (flags & 0x0060) != 0;
+                    if (flags & 0x0020) != 0
+                        || keycode == KEYCODE_LEFT_OPTION
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_LEFT_OPTION))
+                    {
+                        pressed.insert(KEYCODE_LEFT_OPTION);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_LEFT_OPTION);
+                    }
+
+                    if (flags & 0x0040) != 0
+                        || keycode == KEYCODE_RIGHT_OPTION
+                        || (!has_sub && target_keycodes.contains(&KEYCODE_RIGHT_OPTION))
+                    {
+                        pressed.insert(KEYCODE_RIGHT_OPTION);
+                    } else if has_sub {
+                        pressed.remove(&KEYCODE_RIGHT_OPTION);
+                    }
+                } else {
+                    pressed.remove(&KEYCODE_LEFT_OPTION);
+                    pressed.remove(&KEYCODE_RIGHT_OPTION);
+                }
+
+                // Command keys (55 = Left Command, 54 = Right Command)
+                if (flags & 0x00100000) != 0 {
+                    let has_sub = (flags & 0x0018) != 0;
+                    if (flags & 0x0008) != 0
+                        || keycode == 55
+                        || (!has_sub && target_keycodes.contains(&55))
+                    {
+                        pressed.insert(55);
+                    } else if has_sub {
+                        pressed.remove(&55);
+                    }
+
+                    if (flags & 0x0010) != 0
+                        || keycode == 54
+                        || (!has_sub && target_keycodes.contains(&54))
+                    {
+                        pressed.insert(54);
+                    } else if has_sub {
+                        pressed.remove(&54);
+                    }
+                } else {
+                    pressed.remove(&55);
+                    pressed.remove(&54);
+                }
+
+                // Fn key (63)
+                if (flags & FLAG_MASK_FN) != 0 {
+                    pressed.insert(KEYCODE_FN);
+                } else {
+                    pressed.remove(&KEYCODE_FN);
+                }
+
+                // Caps Lock key (57)
+                if (flags & 0x00010000) != 0 {
+                    pressed.insert(57);
+                } else {
+                    pressed.remove(&57);
                 }
             }
             K_CG_EVENT_KEY_DOWN => {
@@ -236,27 +300,134 @@ extern "C" fn event_tap_callback(
     };
 
     if all_down {
-        if !ctx.is_holding.swap(true, Ordering::SeqCst) {
-            if config.is_push_to_talk {
-                ctx.is_recording.store(true, Ordering::SeqCst);
+        if !GLOBAL_IS_HOLDING.swap(true, Ordering::SeqCst) {
+            let now = Instant::now();
+            {
+                let mut guard = ctx.press_start_time.lock().unwrap();
+                *guard = Some(now);
+            }
+
+            ctx.current_press_id.fetch_add(1, Ordering::SeqCst);
+
+            let last_release = {
+                let guard = ctx.last_release_time.lock().unwrap();
+                *guard
+            };
+
+            let is_double_tap = if let Some(last_rel) = last_release {
+                now.duration_since(last_rel).as_millis() <= 380
+            } else {
+                false
+            };
+
+            let is_currently_locked = GLOBAL_HANDS_FREE_LOCKED.load(Ordering::SeqCst);
+
+            if is_currently_locked {
+                // In hands-free mode: pressing hotkey again stops hands-free immediately!
+                GLOBAL_HANDS_FREE_LOCKED.store(false, Ordering::SeqCst);
+                GLOBAL_IS_RECORDING.store(false, Ordering::SeqCst);
+                (ctx.on_stop)();
+            } else if is_double_tap {
+                // Double tap detected! Lock into hands-free mode immediately!
+                GLOBAL_HANDS_FREE_LOCKED.store(true, Ordering::SeqCst);
+                GLOBAL_IS_RECORDING.store(true, Ordering::SeqCst);
                 (ctx.on_start)();
             } else {
-                let was_recording = ctx.is_recording.load(Ordering::SeqCst);
-                if was_recording {
-                    ctx.is_recording.store(false, Ordering::SeqCst);
-                    (ctx.on_stop)();
-                } else {
-                    ctx.is_recording.store(true, Ordering::SeqCst);
-                    (ctx.on_start)();
-                }
+                // First press: pop up immediately with ZERO delay!
+                GLOBAL_HANDS_FREE_LOCKED.store(false, Ordering::SeqCst);
+                GLOBAL_IS_RECORDING.store(true, Ordering::SeqCst);
+                (ctx.on_start)();
             }
         }
-    } else if ctx.is_holding.swap(false, Ordering::SeqCst) && config.is_push_to_talk {
-        ctx.is_recording.store(false, Ordering::SeqCst);
-        (ctx.on_stop)();
+    } else if GLOBAL_IS_HOLDING.swap(false, Ordering::SeqCst) {
+        let now = Instant::now();
+        let press_start = {
+            let guard = ctx.press_start_time.lock().unwrap();
+            *guard
+        };
+        {
+            let mut guard = ctx.last_release_time.lock().unwrap();
+            *guard = Some(now);
+        }
+
+        let is_locked = GLOBAL_HANDS_FREE_LOCKED.load(Ordering::SeqCst);
+
+        if !is_locked {
+            let held_duration_ms = press_start
+                .map(|t| now.duration_since(t).as_millis())
+                .unwrap_or(300);
+
+            if held_duration_ms >= 200 {
+                // Normal hold-to-talk (held >= 200ms): release stops recording immediately!
+                GLOBAL_IS_RECORDING.store(false, Ordering::SeqCst);
+                (ctx.on_stop)();
+            } else {
+                // Quick tap (< 200ms): might be the first tap of a double tap.
+                // Wait 350ms. If no second tap arrives, stop recording!
+                let stop_id = ctx.current_press_id.fetch_add(1, Ordering::SeqCst) + 1;
+                let press_id_arc = Arc::clone(&ctx.current_press_id);
+                let on_stop_cb = Arc::clone(&ctx.on_stop);
+
+                thread::spawn(move || {
+                    thread::sleep(std::time::Duration::from_millis(350));
+                    if press_id_arc.load(Ordering::SeqCst) == stop_id
+                        && !GLOBAL_HANDS_FREE_LOCKED.load(Ordering::SeqCst)
+                    {
+                        GLOBAL_IS_RECORDING.store(false, Ordering::SeqCst);
+                        on_stop_cb();
+                    }
+                });
+            }
+        }
     }
 
     event
+}
+
+static TAP_ACTIVE: AtomicBool = AtomicBool::new(false);
+static TAP_ACTIVE_WITH_AX: AtomicBool = AtomicBool::new(false);
+static CURRENT_RUN_LOOP: Mutex<Option<usize>> = Mutex::new(None);
+
+pub fn is_tap_active() -> bool {
+    TAP_ACTIVE.load(Ordering::SeqCst)
+}
+
+pub fn can_create_event_tap() -> bool {
+    if is_tap_active() {
+        return true;
+    }
+    let flags_only_mask: u64 = 1 << K_CG_EVENT_FLAGS_CHANGED;
+    unsafe {
+        let tap = CGEventTapCreate(
+            K_CG_SESSION_EVENT_TAP,
+            K_CG_HEAD_INSERT_EVENT_TAP,
+            K_CG_EVENT_TAP_OPTION_LISTEN_ONLY,
+            flags_only_mask,
+            event_tap_callback,
+            std::ptr::null_mut(),
+        );
+        if !tap.is_null() {
+            CFRelease(tap);
+            true
+        } else {
+            false
+        }
+    }
+}
+
+pub fn refresh_hotkey_listener_if_needed() {
+    let has_ax = crate::macos::is_accessibility_granted();
+    let was_ax = TAP_ACTIVE_WITH_AX.load(Ordering::SeqCst);
+    if has_ax && !was_ax {
+        eprintln!("[OpenFlow] Accessibility newly granted! Refreshing global event tap...");
+        if let Ok(guard) = CURRENT_RUN_LOOP.lock() {
+            if let Some(rl_ptr) = *guard {
+                unsafe {
+                    CFRunLoopStop(rl_ptr as *mut c_void);
+                }
+            }
+        }
+    }
 }
 
 pub fn start_hotkey_listener<FStart, FStop>(
@@ -272,10 +443,11 @@ pub fn start_hotkey_listener<FStart, FStop>(
             get_config: Box::new(get_config),
             on_start: Arc::new(on_start),
             on_stop: Arc::new(on_stop),
-            is_holding: Arc::new(AtomicBool::new(false)),
-            is_recording: Arc::new(AtomicBool::new(false)),
+            press_start_time: Mutex::new(None),
+            last_release_time: Mutex::new(None),
             pressed_keys: Mutex::new(HashSet::new()),
             port: Mutex::new(None),
+            current_press_id: Arc::new(AtomicU64::new(0)),
         });
 
         let context_ptr = Box::into_raw(context);
@@ -287,54 +459,74 @@ pub fn start_hotkey_listener<FStart, FStop>(
         let flags_only_mask: u64 = 1 << K_CG_EVENT_FLAGS_CHANGED;
 
         unsafe {
-            let tap = loop {
-                let mut t = CGEventTapCreate(
-                    K_CG_SESSION_EVENT_TAP,
-                    K_CG_HEAD_INSERT_EVENT_TAP,
-                    K_CG_EVENT_TAP_OPTION_LISTEN_ONLY,
-                    full_mask,
-                    event_tap_callback,
-                    context_ptr as *mut c_void,
-                );
+            loop {
+                let has_ax = crate::macos::is_accessibility_granted();
+                TAP_ACTIVE_WITH_AX.store(has_ax, Ordering::SeqCst);
 
-                if t.is_null() {
-                    // Fallback to FlagsChanged-only tap (works for modifier keys/chords even without Input Monitoring)
-                    t = CGEventTapCreate(
+                let tap = loop {
+                    let mut t = CGEventTapCreate(
                         K_CG_SESSION_EVENT_TAP,
                         K_CG_HEAD_INSERT_EVENT_TAP,
                         K_CG_EVENT_TAP_OPTION_LISTEN_ONLY,
-                        flags_only_mask,
+                        full_mask,
                         event_tap_callback,
                         context_ptr as *mut c_void,
                     );
+
+                    if t.is_null() {
+                        // Fallback to FlagsChanged-only tap (works for modifier keys/chords even without Input Monitoring)
+                        t = CGEventTapCreate(
+                            K_CG_SESSION_EVENT_TAP,
+                            K_CG_HEAD_INSERT_EVENT_TAP,
+                            K_CG_EVENT_TAP_OPTION_LISTEN_ONLY,
+                            flags_only_mask,
+                            event_tap_callback,
+                            context_ptr as *mut c_void,
+                        );
+                    }
+
+                    if !t.is_null() {
+                        eprintln!("[OpenFlow] Global hotkey event tap started (Accessibility={}).", has_ax);
+                        TAP_ACTIVE.store(true, Ordering::SeqCst);
+                        break t;
+                    }
+
+                    eprintln!("[OpenFlow] Waiting for Accessibility/Input Monitoring permission for global hotkey tap...");
+                    thread::sleep(std::time::Duration::from_secs(2));
+                };
+
+                if let Ok(mut guard) = (*context_ptr).port.lock() {
+                    *guard = Some(tap);
                 }
 
-                if !t.is_null() {
-                    eprintln!("[OpenFlow] Global hotkey event tap started successfully.");
-                    break t;
+                let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
+                if source.is_null() {
+                    TAP_ACTIVE.store(false, Ordering::SeqCst);
+                    CFRelease(tap);
+                    return;
                 }
 
-                eprintln!("[OpenFlow] Waiting for Accessibility/Input Monitoring permission for global hotkey tap...");
-                thread::sleep(std::time::Duration::from_secs(2));
-            };
+                let run_loop = CFRunLoopGetCurrent();
+                if let Ok(mut guard) = CURRENT_RUN_LOOP.lock() {
+                    *guard = Some(run_loop as usize);
+                }
 
-            if let Ok(mut guard) = (*context_ptr).port.lock() {
-                *guard = Some(tap);
-            }
+                CFRunLoopAddSource(run_loop, source, kCFRunLoopCommonModes);
+                CGEventTapEnable(tap, true);
+                CFRunLoopRun();
 
-            let source = CFMachPortCreateRunLoopSource(std::ptr::null(), tap, 0);
-            if source.is_null() {
+                TAP_ACTIVE.store(false, Ordering::SeqCst);
+
+                if let Ok(mut guard) = CURRENT_RUN_LOOP.lock() {
+                    *guard = None;
+                }
+
+                CFRelease(source);
                 CFRelease(tap);
-                return;
+
+                // Small pause before re-creating tap if loop was restarted
+                thread::sleep(std::time::Duration::from_millis(200));
             }
-
-            let run_loop = CFRunLoopGetCurrent();
-            CFRunLoopAddSource(run_loop, source, kCFRunLoopCommonModes);
-            CGEventTapEnable(tap, true);
-            CFRunLoopRun();
-
-            CFRelease(source);
-            CFRelease(tap);
         }
     });
 }
