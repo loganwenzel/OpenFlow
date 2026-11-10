@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Key,
   Mic,
@@ -17,11 +17,14 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { AppSettings, Dictation, PermissionsStatus } from "../types";
+import { CustomSelect, ToggleSwitch } from "./CustomControls";
 import {
   saveAppSettings,
+  getAudioDevices,
   openSystemSettings,
   openExternalUrl,
   requestAccessibilityPermission,
+  requestInputMonitoringPermission,
   playChime,
 } from "../api";
 
@@ -32,6 +35,9 @@ interface SettingsViewProps {
   permissions: PermissionsStatus | null;
   onUpdateSettings: (updated: AppSettings) => void;
   onRefreshPermissions: () => void;
+  onOpenOnboarding?: () => void;
+  targetSection?: string | null;
+  onClearTargetSection?: () => void;
 }
 
 const MAC_PRESETS = [
@@ -126,7 +132,36 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   permissions,
   onUpdateSettings,
   onRefreshPermissions,
+  onOpenOnboarding,
+  targetSection,
+  onClearTargetSection,
 }) => {
+  const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!targetSection) return;
+
+    setHighlightedSection(targetSection);
+    const elemId = `settings-section-${targetSection}`;
+
+    const timer = setTimeout(() => {
+      const elem = document.getElementById(elemId);
+      if (elem) {
+        elem.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 60);
+
+    const clearTimer = setTimeout(() => {
+      setHighlightedSection(null);
+      onClearTargetSection?.();
+    }, 2200);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clearTimer);
+    };
+  }, [targetSection, onClearTargetSection]);
+
   const totalTokens = history.reduce((acc, item) => {
     const p =
       item.prompt_tokens ||
@@ -160,9 +195,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [pendingCombo, setPendingCombo] = useState<{ keycode: number; label: string }[]>([]);
   const comboRef = useRef<{ keycode: number; label: string }[]>([]);
 
+  const [liveAudioDevices, setLiveAudioDevices] = useState<string[]>(audioDevices);
+  const [isRefreshingAudio, setIsRefreshingAudio] = useState(false);
+
   useEffect(() => {
     setFormData(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (audioDevices && audioDevices.length > 0) {
+      setLiveAudioDevices(audioDevices);
+    }
+  }, [audioDevices]);
+
+  const refreshAudioDevices = useCallback(async () => {
+    try {
+      setIsRefreshingAudio(true);
+      const devs = await getAudioDevices();
+      if (Array.isArray(devs)) {
+        setLiveAudioDevices(devs);
+      }
+    } catch (e) {
+      console.warn("Failed to refresh audio devices:", e);
+    } finally {
+      setTimeout(() => setIsRefreshingAudio(false), 400);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAudioDevices();
+    const handleFocus = () => refreshAudioDevices();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [refreshAudioDevices]);
+
+  useEffect(() => {
+    // Re-check permissions when window gains focus (e.g. returning from macOS System Settings)
+    const handleFocus = () => {
+      onRefreshPermissions();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    // Also poll every 1.5s while on the settings screen so toggling permissions updates in real-time
+    const interval = setInterval(() => {
+      onRefreshPermissions();
+    }, 1500);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(interval);
+    };
+  }, [onRefreshPermissions]);
 
   useEffect(() => {
     if (!isRecordingKey) {
@@ -354,7 +437,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </section>
 
         {/* SECTION 1: Google Gemini API */}
-        <section className="p-6 rounded-2xl bg-[#121216] border border-[#212128] flex flex-col gap-5 shadow-sm">
+        <section
+          id="settings-section-model"
+          className={`p-6 rounded-2xl bg-[#121216] border flex flex-col gap-5 shadow-sm transition-all duration-500 ${
+            highlightedSection === "model"
+              ? "border-emerald-500/80 ring-2 ring-emerald-500/25 shadow-lg shadow-emerald-500/10"
+              : "border-[#212128]"
+          }`}
+        >
           <div className="flex items-center gap-2.5 pb-3 border-b border-[#1c1c24]">
             <Key className="w-4 h-4 text-neutral-300" />
             <h2 className="text-sm font-semibold text-white">Google Gemini API Configuration</h2>
@@ -374,12 +464,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   handleSave(updated);
                 }}
                 placeholder="AIzaSy..."
-                className="w-full px-3.5 py-2.5 pr-20 rounded-xl bg-[#181820] border border-[#2a2a35] text-xs font-mono text-white focus:outline-none focus:border-neutral-400 transition-colors"
+                className="w-full px-4 py-3 pr-24 rounded-xl bg-[#161622] border border-[#2b2b3a] text-sm font-mono text-white focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/15 transition-all placeholder:text-[#505060]"
               />
               <button
                 type="button"
                 onClick={() => setShowApiKey(!showApiKey)}
-                className="absolute right-2.5 p-1 rounded-md text-[#787886] hover:text-white transition-colors cursor-pointer"
+                className="absolute right-3 p-1.5 rounded-lg text-[#787886] hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
               >
                 {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -418,31 +508,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <label className="block text-xs font-medium text-[#9a9aa8] mb-1.5">
               Active Gemini Model
             </label>
-            <select
+            <CustomSelect
               value={formData.model}
-              onChange={(e) => {
-                const updated = { ...formData, model: e.target.value };
+              onChange={(val) => {
+                const updated = { ...formData, model: val };
                 handleSave(updated);
               }}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#181820] border border-[#2a2a35] text-xs text-white focus:outline-none focus:border-neutral-400 transition-colors"
-            >
-              <option value="gemini-flash-lite-latest">
-                gemini-flash-lite-latest (Recommended • Ultra-fast, lowest latency)
-              </option>
-              <option value="gemini-2.5-flash">
-                gemini-2.5-flash (Standard Production Model)
-              </option>
-              <option value="gemini-3.5-flash-lite">
-                gemini-3.5-flash-lite (Fastest Preview)
-              </option>
-              <option value="gemini-3.8-flash">
-                gemini-3.8-flash (High Accuracy & Complex Logic)
-              </option>
-              <option value="gemini-flash-latest">
-                gemini-flash-latest (General Multimodal)
-              </option>
-              <option value="custom">Custom Model ID...</option>
-            </select>
+              options={[
+                {
+                  value: "gemini-flash-lite-latest",
+                  label: "gemini-flash-lite-latest",
+                  badge: "Recommended",
+                  description: "Ultra-fast, lowest latency for streaming speech",
+                },
+                {
+                  value: "gemini-2.5-flash",
+                  label: "gemini-2.5-flash",
+                  badge: "Standard",
+                  description: "Standard production flash model with high accuracy",
+                },
+                {
+                  value: "gemini-3.5-flash-lite",
+                  label: "gemini-3.5-flash-lite",
+                  badge: "Fast",
+                  description: "Fastest preview model",
+                },
+                {
+                  value: "gemini-3.8-flash",
+                  label: "gemini-3.8-flash",
+                  badge: "High Logic",
+                  description: "Complex logic and specialized vocabulary",
+                },
+                {
+                  value: "gemini-flash-latest",
+                  label: "gemini-flash-latest",
+                  description: "General multimodal release",
+                },
+                {
+                  value: "custom",
+                  label: "Custom Model ID...",
+                  description: "Specify your own custom tuned or private model identifier",
+                },
+              ]}
+            />
           </div>
 
           {/* Custom Model ID (if selected) */}
@@ -459,7 +567,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   const updated = { ...formData, custom_model_id: e.target.value };
                   handleSave(updated);
                 }}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#181820] border border-[#2a2a35] text-xs text-white focus:outline-none focus:border-neutral-400 transition-colors"
+                className="w-full px-4 py-3 rounded-xl bg-[#161622] border border-[#2b2b3a] text-sm text-white focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/15 transition-all placeholder:text-[#505060]"
               />
             </div>
           )}
@@ -518,7 +626,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </section>
 
         {/* SECTION 2: Hotkey & Dictation Modes */}
-        <section className="p-6 rounded-2xl bg-[#121216] border border-[#212128] flex flex-col gap-5 shadow-sm">
+        <section
+          id="settings-section-hotkey"
+          className={`p-6 rounded-2xl bg-[#121216] border flex flex-col gap-5 shadow-sm transition-all duration-500 ${
+            highlightedSection === "hotkey"
+              ? "border-purple-500/80 ring-2 ring-purple-500/25 shadow-lg shadow-purple-500/10"
+              : "border-[#212128]"
+          }`}
+        >
           <div className="flex items-center gap-2.5 pb-3 border-b border-[#1c1c24]">
             <Command className="w-4 h-4 text-neutral-300" />
             <h2 className="text-sm font-semibold text-white">Global Hotkey & Dictation Modes</h2>
@@ -632,68 +747,106 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* Quick Presets Dropdown */}
-            <div className="mt-2.5 flex items-center gap-2">
-              <span className="text-[11px] text-[#6b6b7a] whitespace-nowrap">Or pick a preset:</span>
-              <select
-                value={
-                  (formData.hotkey_keycodes?.length
-                    ? formData.hotkey_keycodes.join(",")
-                    : String(formData.hotkey_keycode ?? 61))
-                }
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const preset = MAC_PRESETS.find((p) => p.keycodes.join(",") === val);
-                  if (preset) {
-                    const updated: AppSettings = {
-                      ...formData,
-                      hotkey_key: preset.key,
-                      hotkey_keycode: preset.keycodes[0],
-                      hotkey_keycodes: preset.keycodes,
-                    };
-                    handleSave(updated);
+            <div className="mt-3 flex items-center gap-2.5">
+              <span className="text-xs text-[#78788a] whitespace-nowrap">Or pick a preset:</span>
+              <div className="flex-1">
+                <CustomSelect
+                  size="md"
+                  value={
+                    formData.hotkey_keycodes?.length
+                      ? formData.hotkey_keycodes.join(",")
+                      : String(formData.hotkey_keycode ?? 61)
                   }
-                }}
-                className="flex-1 px-3 py-1.5 rounded-lg bg-[#181820] border border-[#2a2a35] text-xs text-[#a1a1b5] focus:outline-none focus:border-neutral-400 transition-colors"
-              >
-                {MAC_PRESETS.map((p) => {
-                  const val = p.keycodes.join(",");
-                  return (
-                    <option key={val} value={val}>
-                      {p.label}
-                    </option>
-                  );
-                })}
-              </select>
+                  onChange={(val) => {
+                    const preset = MAC_PRESETS.find((p) => p.keycodes.join(",") === val);
+                    if (preset) {
+                      const updated: AppSettings = {
+                        ...formData,
+                        hotkey_key: preset.key,
+                        hotkey_keycode: preset.keycodes[0],
+                        hotkey_keycodes: preset.keycodes,
+                      };
+                      handleSave(updated);
+                    }
+                  }}
+                  options={MAC_PRESETS.map((p) => ({
+                    value: p.keycodes.join(","),
+                    label: p.label,
+                  }))}
+                />
+              </div>
             </div>
           </div>
         </section>
 
         {/* SECTION 3: Audio & Microphone */}
-        <section className="p-6 rounded-2xl bg-[#121216] border border-[#212128] flex flex-col gap-5 shadow-sm">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-[#1c1c24]">
-            <Mic className="w-4 h-4 text-neutral-300" />
-            <h2 className="text-sm font-semibold text-white">Audio & Microphone Input</h2>
+        <section
+          id="settings-section-mic"
+          className={`p-6 rounded-2xl bg-[#121216] border flex flex-col gap-5 shadow-sm transition-all duration-500 ${
+            highlightedSection === "mic"
+              ? "border-sky-500/80 ring-2 ring-sky-500/25 shadow-lg shadow-sky-500/10"
+              : "border-[#212128]"
+          }`}
+        >
+          <div className="flex items-center justify-between pb-3 border-b border-[#1c1c24]">
+            <div className="flex items-center gap-2.5">
+              <Mic className="w-4 h-4 text-neutral-300" />
+              <h2 className="text-sm font-semibold text-white">Audio & Microphone Input</h2>
+            </div>
+            <button
+              type="button"
+              onClick={refreshAudioDevices}
+              className="text-xs text-sky-400 hover:text-sky-300 flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Rescan connected audio devices"
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshingAudio ? "animate-spin" : ""}`} />
+              <span>Rescan</span>
+            </button>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-[#9a9aa8] mb-1.5">
               Microphone Device
             </label>
-            <select
-              value={formData.mic_device}
-              onChange={(e) => {
-                const updated = { ...formData, mic_device: e.target.value };
-                handleSave(updated);
-              }}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#181820] border border-[#2a2a35] text-xs text-white focus:outline-none focus:border-neutral-400 transition-colors"
-            >
-              <option value="default">Default macOS System Microphone</option>
-              {audioDevices.map((dev) => (
-                <option key={dev} value={dev}>
-                  {dev}
-                </option>
-              ))}
-            </select>
+            {(() => {
+              const currentMic = formData.mic_device || "default";
+              const isDefault = currentMic === "default";
+              const isFoundInList = isDefault || liveAudioDevices.includes(currentMic);
+
+              const options = [
+                {
+                  value: "default",
+                  label: "Default macOS System Microphone",
+                  description: "Automatically uses the input device selected in macOS Sound Settings",
+                },
+                ...liveAudioDevices.map((dev) => ({
+                  value: dev,
+                  label: dev,
+                  badge: dev === currentMic ? "Active" : undefined,
+                })),
+              ];
+
+              if (!isFoundInList && currentMic) {
+                options.push({
+                  value: currentMic,
+                  label: currentMic,
+                  badge: "Selected",
+                  description: "Device may be temporarily disconnected",
+                });
+              }
+
+              return (
+                <CustomSelect
+                  value={currentMic}
+                  placeholder="Default macOS System Microphone"
+                  onChange={(val) => {
+                    const updated = { ...formData, mic_device: val };
+                    handleSave(updated);
+                  }}
+                  options={options}
+                />
+              );
+            })()}
             <span className="text-[11px] text-[#6b6b7a] mt-1.5 block">
               Records in 16kHz, 16-bit, Mono PCM in-memory to minimize Gemini payload latency.
             </span>
@@ -707,13 +860,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <ShieldCheck className="w-4 h-4 text-neutral-300" />
               <h2 className="text-sm font-semibold text-white">macOS Permissions Status Panel</h2>
             </div>
-            <button
-              onClick={onRefreshPermissions}
-              className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Check Status</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {onOpenOnboarding && (
+                <button
+                  type="button"
+                  onClick={onOpenOnboarding}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>Setup Guide</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onRefreshPermissions}
+                className="text-xs text-neutral-400 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Check Status</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3.5">
@@ -753,7 +919,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div>
                 <div className="text-xs font-semibold text-white">Accessibility Permissions</div>
                 <div className="text-[11px] text-[#7b7b8a]">
-                  Required for global key listener & native Cmd+V text auto-paste.
+                  Required for native Cmd+V auto-pasting at your cursor.
                 </div>
               </div>
 
@@ -783,6 +949,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Input Monitoring (Device Control & Keystroke Access) */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
+              <div>
+                <div className="text-xs font-semibold text-white">
+                  Input Monitoring (Device Control & Keystrokes)
+                </div>
+                <div className="text-[11px] text-[#7b7b8a]">
+                  Required for global hotkeys (e.g. ⌥ Option, ⇧ Shift) while other apps are active.
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {permissions?.input_monitoring ? (
+                  <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Granted</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      await requestInputMonitoringPermission();
+                      openSystemSettings("input_monitoring");
+                    }}
+                    className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
+                  >
+                    Grant Access
+                  </button>
+                )}
+
+                <button
+                  onClick={() => openSystemSettings("input_monitoring")}
+                  className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                >
+                  Open Mac Settings
+                </button>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -793,61 +997,72 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <h2 className="text-sm font-semibold text-white">Text Injection & Preferences</h2>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             {/* Auto Paste */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-medium text-white">Auto-paste at Cursor</div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Automatically synthesizes native Cmd+V into the active application.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ToggleSwitch
                 checked={formData.auto_paste}
-                onChange={(e) => {
-                  const updated = { ...formData, auto_paste: e.target.checked };
+                onChange={(checked) => {
+                  const updated = { ...formData, auto_paste: checked };
                   handleSave(updated);
                 }}
-                className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
               />
             </div>
 
             {/* Sound Feedback */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-medium text-white">Audio Feedback Chimes</div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Play gentle tone when dictation starts and finishes.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ToggleSwitch
                 checked={formData.sound_effects}
-                onChange={(e) => {
-                  const updated = { ...formData, sound_effects: e.target.checked };
+                onChange={(checked) => {
+                  const updated = { ...formData, sound_effects: checked };
                   handleSave(updated);
                 }}
-                className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
               />
             </div>
 
             {/* Floating HUD Pill */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="text-xs font-medium text-white">Floating HUD Dictation Pill</div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Show floating non-intrusive waveform pill at bottom of screen.
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <ToggleSwitch
                 checked={formData.pill_enabled}
-                onChange={(e) => {
-                  const updated = { ...formData, pill_enabled: e.target.checked };
+                onChange={(checked) => {
+                  const updated = { ...formData, pill_enabled: checked };
                   handleSave(updated);
                 }}
-                className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+              />
+            </div>
+
+            {/* Pause Media During Dictation */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-xs font-medium text-white">Pause Media During Dictation</div>
+                <div className="text-[11px] text-[#7b7b8a]">
+                  Like Wispr Flow: automatically pauses music and video playback (Spotify, Apple Music, YouTube) during dictation, and resumes when finished.
+                </div>
+              </div>
+              <ToggleSwitch
+                checked={formData.pause_media !== false && formData.mute_audio !== false}
+                onChange={(checked) => {
+                  const updated = { ...formData, pause_media: checked, mute_audio: checked };
+                  handleSave(updated);
+                }}
               />
             </div>
           </div>

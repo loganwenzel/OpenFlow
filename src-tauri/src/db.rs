@@ -41,6 +41,10 @@ pub struct SnippetEntry {
     pub created_at: String,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub gemini_api_key: String,
@@ -55,6 +59,10 @@ pub struct AppSettings {
     pub auto_paste: bool,
     pub sound_effects: bool,
     pub pill_enabled: bool,
+    #[serde(default = "default_true")]
+    pub pause_media: bool,
+    #[serde(default = "default_true")]
+    pub mute_audio: bool,
     #[serde(default)]
     pub theme: Option<String>,
 }
@@ -178,6 +186,8 @@ fn seed_defaults(conn: &Connection) -> Result<()> {
         ("auto_paste", "true"),
         ("sound_effects", "true"),
         ("pill_enabled", "true"),
+        ("pause_media", "true"),
+        ("mute_audio", "true"),
         ("theme", "system"),
     ];
 
@@ -424,6 +434,18 @@ pub fn get_settings(conn: &Connection) -> Result<AppSettings> {
             .get("pill_enabled")
             .map(|v| v == "true")
             .unwrap_or(true),
+        pause_media: map
+            .get("pause_media")
+            .map(|v| v == "true")
+            .unwrap_or_else(|| {
+                map.get("mute_audio")
+                    .map(|v| v == "true")
+                    .unwrap_or(true)
+            }),
+        mute_audio: map
+            .get("mute_audio")
+            .map(|v| v == "true")
+            .unwrap_or(true),
         theme: Some(
             map.get("theme")
                 .cloned()
@@ -469,6 +491,14 @@ pub fn save_settings(conn: &Connection, settings: &AppSettings) -> Result<()> {
         (
             "pill_enabled",
             if settings.pill_enabled { "true" } else { "false" },
+        ),
+        (
+            "pause_media",
+            if settings.pause_media { "true" } else { "false" },
+        ),
+        (
+            "mute_audio",
+            if settings.mute_audio { "true" } else { "false" },
         ),
         ("theme", theme_str),
     ];
