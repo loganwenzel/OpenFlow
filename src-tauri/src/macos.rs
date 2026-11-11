@@ -2,7 +2,7 @@
 #![allow(deprecated)]
 
 use cocoa::base::{id, nil};
-use cocoa::foundation::NSString;
+use cocoa::foundation::{NSPoint, NSRect, NSSize, NSString};
 use core_graphics::event::{CGEvent, CGEventFlags, CGEventTapLocation};
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 use objc::{class, msg_send, sel, sel_impl};
@@ -296,16 +296,17 @@ pub fn configure_main_window(window: &tauri::WebviewWindow) {
 
 /// Configures the floating pill window on macOS so it:
 /// 1. Floats on all spaces / virtual desktops (NSWindowCollectionBehaviorCanJoinAllSpaces = 1 << 0)
-/// 2. Stationary across space switches (NSWindowCollectionBehaviorStationary = 1 << 4)
+/// 2. Transient floating overlay across spaces (NSWindowCollectionBehaviorTransient = 1 << 3)
 /// 3. Ignores Cmd+~ window cycle (NSWindowCollectionBehaviorIgnoresCycle = 1 << 6)
 /// 4. Can appear over full-screen apps (NSWindowCollectionBehaviorFullScreenAuxiliary = 1 << 8)
+/// 5. Joins active apps and full screen spaces (NSWindowCollectionBehaviorCanJoinAllApplications = 1 << 18)
 pub fn configure_pill_window(pill: &tauri::WebviewWindow) {
     if let Ok(ns_win) = pill.ns_window() {
         let ns_win = ns_win as id;
         unsafe {
-            // Note: CanJoinAllSpaces (1) and MoveToActiveSpace (2) are mutually exclusive in AppKit!
-            // Using both throws NSInvalidArgumentException.
-            let behavior: u64 = (1 << 0) | (1 << 4) | (1 << 6) | (1 << 8);
+            // Note: CanJoinAllSpaces (1 << 0) with Transient (1 << 3), FullScreenAuxiliary (1 << 8),
+            // and CanJoinAllApplications (1 << 18) allows the pill to appear over any Space or full-screen app.
+            let behavior: u64 = (1 << 0) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 18);
             let _: () = msg_send![ns_win, setCollectionBehavior: behavior];
 
             // Ensure window background and frame are 100% transparent with no rectangular shadow
@@ -323,28 +324,36 @@ pub fn configure_pill_window(pill: &tauri::WebviewWindow) {
     }
 }
 
-/// Shows the floating pill on whatever space the user is currently looking at,
+/// Shows the floating pill on whatever space and monitor the user is currently looking at,
 /// positioned cleanly near the bottom of the active screen.
 pub fn show_pill_without_activation(pill: &tauri::WebviewWindow) {
-    if let Ok(Some(monitor)) = pill.current_monitor().or_else(|_| pill.primary_monitor()) {
-        let scale = monitor.scale_factor();
-        let pill_w = 500.0f64;
-        let pill_h = 220.0f64;
-        let screen_w = monitor.size().width as f64 / scale;
-        let screen_h = monitor.size().height as f64 / scale;
-        let x = (screen_w - pill_w) / 2.0;
-        let y = screen_h - pill_h - 12.0;
-        let _ = pill.set_position(tauri::LogicalPosition::new(x, y));
-    }
-
     let pill_clone = pill.clone();
     let _ = pill.run_on_main_thread(move || {
         if let Ok(ns_win) = pill_clone.ns_window() {
             let ns_win = ns_win as id;
             unsafe {
-                let behavior: u64 = (1 << 0) | (1 << 4) | (1 << 6) | (1 << 8);
-                let clear_color: id = msg_send![class!(NSColor), clearColor];
+                let behavior: u64 = (1 << 0) | (1 << 3) | (1 << 6) | (1 << 8) | (1 << 18);
                 let _: () = msg_send![ns_win, setCollectionBehavior: behavior];
+
+                // Dynamically position on active screen (where the mouse / active user context is)
+                let main_screen: id = msg_send![class!(NSScreen), mainScreen];
+                if main_screen != nil {
+                    let frame: NSRect = msg_send![main_screen, frame];
+                    let pill_w = 500.0f64;
+                    let pill_h = 220.0f64;
+                    let x = frame.origin.x + (frame.size.width - pill_w) / 2.0;
+                    let y = frame.origin.y + 12.0; // 12pt above bottom of screen in Cocoa coordinates
+                    let win_frame = NSRect {
+                        origin: NSPoint { x, y },
+                        size: NSSize {
+                            width: pill_w,
+                            height: pill_h,
+                        },
+                    };
+                    let _: () = msg_send![ns_win, setFrame:win_frame display:false];
+                }
+
+                let clear_color: id = msg_send![class!(NSColor), clearColor];
                 let _: () = msg_send![ns_win, setOpaque: false];
                 let _: () = msg_send![ns_win, setBackgroundColor: clear_color];
                 let _: () = msg_send![ns_win, setHasShadow: false];

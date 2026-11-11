@@ -917,9 +917,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {/* Accessibility Permission */}
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
               <div>
-                <div className="text-xs font-semibold text-white">Accessibility Permissions</div>
+                <div className="text-xs font-semibold text-white">Accessibility (Device Control & Data Access)</div>
                 <div className="text-[11px] text-[#7b7b8a]">
-                  Required for native Cmd+V auto-pasting at your cursor.
+                  Required for native Cmd+V auto-pasting at your cursor. Listed as "Device Control and Data Access" in macOS Sequoia.
                 </div>
               </div>
 
@@ -950,11 +950,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               </div>
             </div>
 
-            {/* Input Monitoring (Device Control & Keystroke Access) */}
+            {/* Input Monitoring */}
             <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
               <div>
                 <div className="text-xs font-semibold text-white">
-                  Input Monitoring (Device Control & Keystrokes)
+                  Input Monitoring
                 </div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Required for global hotkeys (e.g. ⌥ Option, ⇧ Shift) while other apps are active.
