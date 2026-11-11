@@ -123,7 +123,7 @@ export const FloatingPill: React.FC = () => {
       : "w-fit px-3.5 py-1.5";
 
   return (
-    <div className="w-full h-full flex items-end justify-center pb-2 px-2 bg-transparent select-none overflow-hidden">
+    <div className="w-full h-full flex items-end justify-center pb-5 px-4 bg-transparent select-none overflow-hidden">
       {/* HUD Bubble Container */}
       <div
         onMouseEnter={() => setIsHovered(true)}
@@ -133,20 +133,20 @@ export const FloatingPill: React.FC = () => {
             stopDictation();
           }
         }}
-        className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-[width,max-width,padding,background-color,border-color,box-shadow,transform] duration-250 ease-out shadow-2xl backdrop-blur-2xl border ${
+        className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-[width,max-width,padding,background-color,border-color,box-shadow,transform] duration-250 ease-out backdrop-blur-2xl border ${
           currentState === "copied" ? "cursor-default" : "cursor-pointer"
         } ${
           currentState === "error"
             ? isLight
-              ? "bg-red-50/95 border-red-400/50 shadow-red-900/10"
-              : "bg-[#180f12]/95 border-red-500/40 shadow-red-950/40"
+              ? "bg-red-50/95 border-red-400/50 shadow-[0_6px_20px_rgba(239,68,68,0.18)]"
+              : "bg-[#180f12]/95 border-red-500/40 shadow-[0_6px_24px_rgba(239,68,68,0.22)]"
             : isLight
             ? currentState === "recording"
-              ? "bg-white/95 border-purple-500/50 shadow-black/15"
-              : "bg-white/95 border-zinc-300/90 shadow-black/15"
+              ? "bg-white/95 border-purple-500/50 shadow-[0_6px_24px_rgba(147,51,234,0.18)]"
+              : "bg-white/95 border-zinc-300/90 shadow-[0_6px_20px_rgba(0,0,0,0.12)]"
             : currentState === "recording"
-            ? "bg-[#101014]/95 border-purple-500/40 shadow-purple-950/40"
-            : "bg-[#101014]/95 border-white/15 shadow-black/50"
+            ? "bg-[#101014]/95 border-purple-500/40 shadow-[0_6px_24px_rgba(147,51,234,0.22)]"
+            : "bg-[#101014]/95 border-white/15 shadow-[0_6px_24px_rgba(0,0,0,0.38)]"
         }`}
       >
         {/* State 1 & 2: RECORDING & PROCESSING */}
