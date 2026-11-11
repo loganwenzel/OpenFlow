@@ -117,10 +117,10 @@ export const FloatingPill: React.FC = () => {
 
   const widthClass =
     currentState === "copied"
-      ? "w-auto min-w-[200px] max-w-[440px] rounded-[18px] px-3.5 py-2.5"
+      ? "w-auto min-w-[200px] max-w-[440px] px-3.5 py-2.5"
       : currentState === "error"
-      ? "w-auto min-w-[170px] max-w-[320px] rounded-full px-3.5 py-1.5"
-      : "w-fit rounded-full px-3.5 py-1.5";
+      ? "w-auto min-w-[170px] max-w-[320px] px-3.5 py-1.5"
+      : "w-fit px-3.5 py-1.5";
 
   return (
     <div className="w-full h-full flex items-end justify-center pb-2 px-2 bg-transparent select-none overflow-hidden">
@@ -133,7 +133,7 @@ export const FloatingPill: React.FC = () => {
             stopDictation();
           }
         }}
-        className={`animate-pill-enter relative ${widthClass} transition-[width,max-width,border-radius,background-color,border-color,box-shadow,transform] duration-250 ease-out shadow-2xl backdrop-blur-2xl border ${
+        className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-[width,max-width,padding,background-color,border-color,box-shadow,transform] duration-250 ease-out shadow-2xl backdrop-blur-2xl border ${
           currentState === "copied" ? "cursor-default" : "cursor-pointer"
         } ${
           currentState === "error"
@@ -195,7 +195,7 @@ export const FloatingPill: React.FC = () => {
 
         {/* Expandable Recorded Text Area for "copied" state */}
         {currentState === "copied" && statePayload.last_text && (
-          <div className="max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10">
+          <div className="max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10 animate-in fade-in duration-200">
             <span
               className={isLight ? "text-zinc-800" : "text-neutral-100"}
             >
@@ -206,7 +206,7 @@ export const FloatingPill: React.FC = () => {
 
         {/* State 3: SAVED TO CLIPBOARD Footer */}
         {currentState === "copied" && (
-          <div className="flex items-center justify-center w-full gap-1.5 py-0.5">
+          <div className="flex items-center justify-center w-full gap-1.5 py-0.5 animate-in fade-in duration-200">
             <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
             <span
               className={`text-[11.5px] font-medium ${
