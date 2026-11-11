@@ -1,7 +1,19 @@
 # OpenFlow 🎙️✨
 > **Native macOS AI Dictation App (Wispr Flow Clone) powered directly by Google Gemini API**
 
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20(Apple%20Silicon)-101014?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.0_aarch64.dmg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
 OpenFlow is a lightweight, blazing-fast, open-source macOS desktop dictation application that replicates the core user experience, speed, and visual design of **Wispr Flow**, powered directly by the **Google Gemini API** (`gemini-3.5-flash-lite`, `gemini-3.8-flash`, etc.).
+
+---
+
+## ⚡ Quick Download & Install
+
+1. **[Download OpenFlow for macOS (Apple Silicon .dmg)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.0_aarch64.dmg)**  
+   *(Or browse all versions on the [Releases page](https://github.com/loganwenzel/OpenFlow/releases))*
+2. Open the downloaded `.dmg` and drag **OpenFlow** into your **Applications** folder.
+3. Launch **OpenFlow**, enter your free Gemini API key, and grant Microphone & Device Control permissions.
 
 ---
 
@@ -58,21 +70,22 @@ OpenFlow is a lightweight, blazing-fast, open-source macOS desktop dictation app
 
 ---
 
-## Getting Started
+## Build from Source
 
 ### Prerequisites
-- macOS (Apple Silicon or Intel)
+- macOS 12+ (Apple Silicon or Intel)
 - Node.js 18+ and npm
 - Rust 1.75+ (`cargo`)
 
-### Installation & Run
+### Compilation
 
-1. Clone or open the repository:
+1. Clone the repository:
    ```bash
-   cd /Users/logan/repos/openflow
+   git clone https://github.com/loganwenzel/OpenFlow.git
+   cd OpenFlow
    ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
    ```bash
    npm install
    ```
@@ -82,7 +95,7 @@ OpenFlow is a lightweight, blazing-fast, open-source macOS desktop dictation app
    npm run tauri dev
    ```
 
-4. Build release binary:
+4. Build production DMG & app bundle:
    ```bash
    npm run tauri build
    ```
@@ -91,8 +104,10 @@ OpenFlow is a lightweight, blazing-fast, open-source macOS desktop dictation app
 
 ## macOS Permissions Note
 
-- **Microphone Permission:** Required for recording your voice. Prompted on first launch or accessible via *System Settings > Privacy & Security > Microphone*.
-- **Accessibility Permission:** Required for global hotkey detection in the background and native `Cmd + V` text auto-paste. Accessible via *System Settings > Privacy & Security > Accessibility*.
+OpenFlow requires macOS system permissions to operate seamlessly across applications:
+- **Microphone Access:** Required for capturing spoken voice audio for Gemini AI transcription.
+- **Accessibility (Device Control and Data Access):** Required for global push-to-talk hotkey detection in the background and native `Cmd + V` text auto-paste at your active cursor. *(In macOS Sequoia, Apple renames Accessibility to "Device Control and Data Access" under Privacy & Security).*
+- **Input Monitoring:** Allows low-level hardware chord monitoring (e.g. `⌃ Control + ⇧ Shift` or `⌥ Option`) across all active spaces.
 
 ---
 
