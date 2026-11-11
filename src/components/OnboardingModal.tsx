@@ -159,7 +159,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     Input Monitoring (Device Control)
                   </div>
                   <div className="text-[11px] text-neutral-400">
-                    Detects your hotkey ({settings.hotkey_key || "Right Shift"}) while in other apps.
+                    Detects your dictation hotkey while in other apps.
                   </div>
                 </div>
               </div>
@@ -251,18 +251,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <ExternalLink className="w-3 h-3" />
                 </button>
               </div>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-[#1a1a22] border border-[#252530] flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-white">Default Hotkey</div>
-                <div className="text-[11px] text-neutral-400">
-                  Hold down to dictate, release to transcribe & paste.
-                </div>
-              </div>
-              <kbd className="font-mono text-xs px-2.5 py-1 rounded-lg bg-[#242430] border border-[#343444] text-neutral-200">
-                {settings.hotkey_key || "Right Shift (⇧)"}
-              </kbd>
             </div>
           </div>
         )}

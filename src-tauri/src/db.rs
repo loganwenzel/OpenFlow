@@ -179,9 +179,9 @@ fn seed_defaults(conn: &Connection) -> Result<()> {
         ("model", "gemini-3.5-flash-lite"),
         ("custom_model_id", ""),
         ("hotkey_mode", "push_to_talk"),
-        ("hotkey_key", "Left Control (⌃) + Left Shift (⇧)"),
-        ("hotkey_keycode", "59"),
-        ("hotkey_keycodes", "59,56"),
+        ("hotkey_key", "Right Shift (⇧)"),
+        ("hotkey_keycode", "60"),
+        ("hotkey_keycodes", "60"),
         ("mic_device", "default"),
         ("auto_paste", "true"),
         ("sound_effects", "true"),
@@ -197,6 +197,20 @@ fn seed_defaults(conn: &Connection) -> Result<()> {
             params![k, v],
         )?;
     }
+
+    // Auto-migrate any existing DB from previous default "Left Control (⌃) + Left Shift (⇧)" to "Right Shift (⇧)"
+    let _ = conn.execute(
+        "UPDATE settings SET value = 'Right Shift (⇧)' WHERE key = 'hotkey_key' AND value = 'Left Control (⌃) + Left Shift (⇧)';",
+        [],
+    );
+    let _ = conn.execute(
+        "UPDATE settings SET value = '60' WHERE key = 'hotkey_keycode' AND value = '59';",
+        [],
+    );
+    let _ = conn.execute(
+        "UPDATE settings SET value = '60' WHERE key = 'hotkey_keycodes' AND value = '59,56';",
+        [],
+    );
 
     Ok(())
 }
@@ -455,7 +469,7 @@ pub fn get_settings(conn: &Connection) -> Result<AppSettings> {
 }
 
 pub fn save_settings(conn: &Connection, settings: &AppSettings) -> Result<()> {
-    let keycode_str = settings.hotkey_keycode.unwrap_or(61).to_string();
+    let keycode_str = settings.hotkey_keycode.unwrap_or(60).to_string();
     let keycodes_str = settings
         .hotkey_keycodes
         .as_ref()
@@ -535,7 +549,8 @@ mod tests {
         let settings = get_settings(&conn).unwrap();
         assert_eq!(settings.model, "gemini-3.5-flash-lite");
         assert_eq!(settings.hotkey_mode, "push_to_talk");
-        assert_eq!(settings.hotkey_keycode, Some(59));
+        assert_eq!(settings.hotkey_key, "Right Shift (⇧)");
+        assert_eq!(settings.hotkey_keycode, Some(60));
     }
 
     #[test]

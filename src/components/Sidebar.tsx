@@ -13,13 +13,13 @@ export type TabType = "dictation" | "dictionary" | "snippets" | "settings";
 
 function formatKeyLabel(rawKey: string): string {
   return rawKey
-    .replace(/Left Control \(⌃\)/g, "Left Ctrl")
-    .replace(/Right Control \(⌃\)/g, "Right Ctrl")
-    .replace(/Left Shift \(⇧\)/g, "Left Shift")
+    .replace(/Left Control \(⌃\)/g, "⌃ Ctrl")
+    .replace(/Right Control \(⌃\)/g, "⌃ Ctrl")
+    .replace(/Left Shift \(⇧\)/g, "⇧ Shift")
     .replace(/Right Shift \(⇧\)/g, "Right Shift")
-    .replace(/Left Option \(⌥\)/g, "Left Opt")
-    .replace(/Right Option \(⌥\)/g, "Right Opt")
-    .replace(/Left Command \(⌘\)/g, "Left Cmd")
+    .replace(/Left Option \(⌥\)/g, "⌥ Opt")
+    .replace(/Right Option \(⌥\)/g, "⌥ Opt")
+    .replace(/Left Command \(⌘\)/g, "⌘ Cmd")
     .replace(/Right Command \(⌘\)/g, "Right Cmd")
     .replace(/\s*\([^)]*\)/g, "")
     .trim();
@@ -130,16 +130,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[#888892] group-hover:text-neutral-200 font-medium shrink-0 transition-colors">
                 Hotkey
               </span>
-              <div className="flex flex-wrap items-center justify-end gap-1">
-                {(settings?.hotkey_key || "Left Control (⌃) + Left Shift (⇧)")
+              <div className="flex items-center justify-end gap-1 shrink-0 flex-nowrap overflow-hidden">
+                {(settings?.hotkey_key || "Right Shift (⇧)")
                   .split(" + ")
                   .map((part, idx, arr) => (
                     <React.Fragment key={idx}>
-                      <kbd className="hotkey-badge font-sans text-[11px] font-medium bg-[#1d1d24] group-hover:bg-[#252530] text-neutral-200 px-1.5 py-0.5 rounded-md border border-[#2b2b35] group-hover:border-[#3b3b48] shadow-2xs transition-colors">
+                      <kbd className="hotkey-badge font-sans text-[11px] font-medium bg-[#1d1d24] group-hover:bg-[#252530] text-neutral-200 px-1.5 py-0.5 rounded-md border border-[#2b2b35] group-hover:border-[#3b3b48] shadow-2xs transition-colors shrink-0 whitespace-nowrap">
                         {formatKeyLabel(part)}
                       </kbd>
                       {idx < arr.length - 1 && (
-                        <span className="text-[10px] text-[#686875] font-medium">+</span>
+                        <span className="text-[10px] text-[#686875] font-medium shrink-0">+</span>
                       )}
                     </React.Fragment>
                   ))}

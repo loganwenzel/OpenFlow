@@ -23,6 +23,7 @@ interface DictationViewProps {
   onStartDictation: () => void;
   onStopDictation: () => void;
   permissions?: PermissionsStatus | null;
+  hotkeyKey?: string;
 }
 
 export const DictationView: React.FC<DictationViewProps> = ({
@@ -33,6 +34,7 @@ export const DictationView: React.FC<DictationViewProps> = ({
   onStartDictation,
   onStopDictation,
   permissions,
+  hotkeyKey,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -215,7 +217,7 @@ export const DictationView: React.FC<DictationViewProps> = ({
               <Mic className="w-8 h-8 mx-auto mb-3 opacity-30" />
               <p className="text-sm font-medium">No dictations found</p>
               <p className="text-xs text-[#525260] mt-1">
-                Hold your global hotkey (⌥ Option) or click "Start Dictation" above.
+                Hold your global hotkey ({hotkeyKey ? hotkeyKey.replace(/\s*\([^)]*\)/g, "").trim() : "Right Shift"}) or click "Start Dictation" above.
               </p>
             </div>
           ) : (

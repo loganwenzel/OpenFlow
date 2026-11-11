@@ -45,9 +45,9 @@ export function App() {
     model: "gemini-flash-lite-latest",
     custom_model_id: null,
     hotkey_mode: "push_to_talk",
-    hotkey_key: "Left Control (⌃) + Left Shift (⇧)",
-    hotkey_keycode: 59,
-    hotkey_keycodes: [59, 56],
+    hotkey_key: "Right Shift (⇧)",
+    hotkey_keycode: 60,
+    hotkey_keycodes: [60],
     mic_device: "default",
     auto_paste: true,
     sound_effects: true,
@@ -229,6 +229,7 @@ export function App() {
                   onStartDictation={() => startDictation()}
                   onStopDictation={() => stopDictation()}
                   permissions={permissions}
+                  hotkeyKey={settings?.hotkey_key}
                 />
               )}
 

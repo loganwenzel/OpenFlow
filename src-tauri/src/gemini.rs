@@ -351,7 +351,7 @@ mod tests {
         ];
 
         let prompt = transcriber.build_system_prompt("Slack", &dictionary, &snippets);
-        assert!(prompt.contains(r#"Active Application Context: The user is currently typing inside "Slack""#));
+        assert!(prompt.contains(r#"Active Application Context: The active window is "Slack""#));
         assert!(prompt.contains("- Supabase"));
         assert!(prompt.contains(r#"- "btw" -> always format/replace as "by the way""#));
         assert!(prompt.contains(r#"- Trigger: "my email" => Expansion: "test@example.com""#));
