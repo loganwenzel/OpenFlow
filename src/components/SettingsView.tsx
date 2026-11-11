@@ -135,31 +135,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onClearTargetSection,
 }) => {
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
-  const handledSectionRef = useRef<string | null>(null);
+  const onClearRef = useRef(onClearTargetSection);
+  onClearRef.current = onClearTargetSection;
 
   useEffect(() => {
-    if (!targetSection) {
-      handledSectionRef.current = null;
-      return;
-    }
-
-    if (handledSectionRef.current === targetSection) {
-      return;
-    }
-    handledSectionRef.current = targetSection;
+    if (!targetSection) return;
 
     setHighlightedSection(targetSection);
     const elemId = `settings-section-${targetSection}`;
 
-    // Clear targetSection in parent immediately so subsequent re-renders don't re-scroll
-    onClearTargetSection?.();
-
-    const timer = setTimeout(() => {
+    const scroll = () => {
       const elem = document.getElementById(elemId);
       if (elem) {
         elem.scrollIntoView({ behavior: "smooth", block: "center" });
+        return true;
       }
-    }, 60);
+      return false;
+    };
+
+    const timer = setTimeout(() => {
+      if (!scroll()) {
+        setTimeout(scroll, 120);
+      }
+      onClearRef.current?.();
+    }, 80);
 
     const clearHighlightTimer = setTimeout(() => {
       setHighlightedSection(null);
@@ -893,15 +892,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <div className="flex flex-col gap-3.5">
             {/* Microphone Permission */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
-              <div>
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e] gap-4">
+              <div className="min-w-0">
                 <div className="text-xs font-semibold text-white">Microphone Access</div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Required for capturing spoken voice audio.
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 shrink-0">
                 {permissions?.microphone ? (
                   <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
                     <Check className="w-3.5 h-3.5" />
@@ -916,7 +915,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 <button
                   onClick={() => openSystemSettings("microphone")}
-                  className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer whitespace-nowrap shrink-0"
                 >
                   Open Mac Settings
                 </button>
@@ -924,15 +923,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* Accessibility Permission */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
-              <div>
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e] gap-4">
+              <div className="min-w-0">
                 <div className="text-xs font-semibold text-white">Accessibility (Device Control & Data Access)</div>
                 <div className="text-[11px] text-[#7b7b8a]">
                   Required for native Cmd+V auto-pasting at your cursor. Listed as "Device Control and Data Access" in macOS Sequoia.
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 shrink-0">
                 {permissions?.accessibility ? (
                   <>
                     <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
@@ -941,7 +940,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                     <button
                       onClick={() => openSystemSettings("accessibility")}
-                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer whitespace-nowrap shrink-0"
                     >
                       Open Mac Settings
                     </button>
@@ -949,7 +948,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 ) : (
                   <button
                     onClick={() => openSystemSettings("accessibility")}
-                    className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     Open Mac Settings
                   </button>
@@ -958,8 +957,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             {/* Input Monitoring */}
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e]">
-              <div>
+            <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#181820] border border-[#24242e] gap-4">
+              <div className="min-w-0">
                 <div className="text-xs font-semibold text-white">
                   Input Monitoring
                 </div>
@@ -968,7 +967,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 shrink-0">
                 {permissions?.input_monitoring ? (
                   <>
                     <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
@@ -977,7 +976,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </span>
                     <button
                       onClick={() => openSystemSettings("input_monitoring")}
-                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer whitespace-nowrap shrink-0"
                     >
                       Open Mac Settings
                     </button>
@@ -985,7 +984,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 ) : (
                   <button
                     onClick={() => openSystemSettings("input_monitoring")}
-                    className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
+                    className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap shrink-0"
                   >
                     Open Mac Settings
                   </button>
