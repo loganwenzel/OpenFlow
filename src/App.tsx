@@ -62,6 +62,7 @@ export function App() {
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [hasDismissedOnboarding, setHasDismissedOnboarding] = useState<boolean>(false);
   const [targetSettingsSection, setTargetSettingsSection] = useState<string | null>(null);
+  const handleClearTargetSection = useCallback(() => setTargetSettingsSection(null), []);
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
     () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true
   );
@@ -254,7 +255,7 @@ export function App() {
                   onUpdateSettings={setSettings}
                   onRefreshPermissions={handleRefreshPermissions}
                   targetSection={targetSettingsSection}
-                  onClearTargetSection={() => setTargetSettingsSection(null)}
+                  onClearTargetSection={handleClearTargetSection}
                   onOpenOnboarding={() => {
                     setHasDismissedOnboarding(false);
                     setShowOnboarding(true);
