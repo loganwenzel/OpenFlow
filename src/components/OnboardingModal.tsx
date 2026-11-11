@@ -12,8 +12,6 @@ import {
 import { PermissionsStatus, AppSettings } from "../types";
 import {
   openSystemSettings,
-  requestAccessibilityPermission,
-  requestInputMonitoringPermission,
   saveAppSettings,
   playChime,
 } from "../api";
@@ -175,13 +173,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={async () => {
-                        await requestInputMonitoringPermission();
-                        openSystemSettings("input_monitoring");
-                      }}
+                      onClick={() => openSystemSettings("input_monitoring")}
                       className="px-2.5 py-1 text-xs font-medium text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-colors cursor-pointer"
                     >
-                      Grant Access
+                      Open Settings
                     </button>
                   </div>
                 )}
@@ -211,13 +206,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={async () => {
-                        await requestAccessibilityPermission();
-                        openSystemSettings("accessibility");
-                      }}
+                      onClick={() => openSystemSettings("accessibility")}
                       className="px-2.5 py-1 text-xs font-medium text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 rounded-lg transition-colors cursor-pointer"
                     >
-                      Grant Access
+                      Open Settings
                     </button>
                   </div>
                 )}

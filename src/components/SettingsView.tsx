@@ -23,8 +23,6 @@ import {
   getAudioDevices,
   openSystemSettings,
   openExternalUrl,
-  requestAccessibilityPermission,
-  requestInputMonitoringPermission,
   playChime,
 } from "../api";
 
@@ -137,12 +135,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onClearTargetSection,
 }) => {
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+  const handledSectionRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!targetSection) return;
+    if (!targetSection) {
+      handledSectionRef.current = null;
+      return;
+    }
+
+    if (handledSectionRef.current === targetSection) {
+      return;
+    }
+    handledSectionRef.current = targetSection;
 
     setHighlightedSection(targetSection);
     const elemId = `settings-section-${targetSection}`;
+
+    // Clear targetSection in parent immediately so subsequent re-renders don't re-scroll
+    onClearTargetSection?.();
 
     const timer = setTimeout(() => {
       const elem = document.getElementById(elemId);
@@ -151,16 +161,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       }
     }, 60);
 
-    const clearTimer = setTimeout(() => {
+    const clearHighlightTimer = setTimeout(() => {
       setHighlightedSection(null);
-      onClearTargetSection?.();
-    }, 2200);
+    }, 2000);
 
     return () => {
       clearTimeout(timer);
-      clearTimeout(clearTimer);
+      clearTimeout(clearHighlightTimer);
     };
-  }, [targetSection, onClearTargetSection]);
+  }, [targetSection]);
 
   const totalTokens = history.reduce((acc, item) => {
     const p =
@@ -925,28 +934,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="flex items-center gap-2.5">
                 {permissions?.accessibility ? (
-                  <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Granted</span>
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Granted</span>
+                    </span>
+                    <button
+                      onClick={() => openSystemSettings("accessibility")}
+                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                    >
+                      Open Mac Settings
+                    </button>
+                  </>
                 ) : (
                   <button
-                    onClick={async () => {
-                      await requestAccessibilityPermission();
-                      openSystemSettings("accessibility");
-                    }}
+                    onClick={() => openSystemSettings("accessibility")}
                     className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
                   >
-                    Grant Access
+                    Open Mac Settings
                   </button>
                 )}
-
-                <button
-                  onClick={() => openSystemSettings("accessibility")}
-                  className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
-                >
-                  Open Mac Settings
-                </button>
               </div>
             </div>
 
@@ -963,28 +970,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="flex items-center gap-2.5">
                 {permissions?.input_monitoring ? (
-                  <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Granted</span>
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1 text-[11.5px] text-emerald-400 font-medium">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Granted</span>
+                    </span>
+                    <button
+                      onClick={() => openSystemSettings("input_monitoring")}
+                      className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
+                    >
+                      Open Mac Settings
+                    </button>
+                  </>
                 ) : (
                   <button
-                    onClick={async () => {
-                      await requestInputMonitoringPermission();
-                      openSystemSettings("input_monitoring");
-                    }}
+                    onClick={() => openSystemSettings("input_monitoring")}
                     className="px-3 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 text-xs font-medium transition-colors cursor-pointer"
                   >
-                    Grant Access
+                    Open Mac Settings
                   </button>
                 )}
-
-                <button
-                  onClick={() => openSystemSettings("input_monitoring")}
-                  className="px-3 py-1 rounded-lg bg-[#24242e] hover:bg-[#30303c] text-xs text-neutral-200 transition-colors cursor-pointer"
-                >
-                  Open Mac Settings
-                </button>
               </div>
             </div>
           </div>
