@@ -55,7 +55,8 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.plist",
+      "signingIdentity": "Apple Development: Samantha Kerry (WP6R5YWZLU)"
     }
   }
 }

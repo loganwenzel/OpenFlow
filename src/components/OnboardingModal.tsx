@@ -195,9 +195,9 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   <Command className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-white">Accessibility</div>
+                  <div className="text-xs font-semibold text-white">Accessibility (Device Control & Data Access)</div>
                   <div className="text-[11px] text-neutral-400">
-                    Pastes transcribed text at your active cursor with native ⌘V.
+                    Pastes transcribed text at your active cursor with native ⌘V. Listed as "Device Control and Data Access" in macOS Sequoia.
                   </div>
                 </div>
               </div>
