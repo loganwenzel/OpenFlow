@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AlertCircle,
   X,
@@ -109,6 +109,33 @@ export const FloatingPill: React.FC = () => {
 
   const currentState = statePayload.state;
   const isHandsFree = Boolean(statePayload.is_hands_free);
+  const [targetHeight, setTargetHeight] = useState<number>(38);
+  const copiedContentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (currentState === "copied") {
+      const updateHeight = () => {
+        if (copiedContentRef.current) {
+          const contentH =
+            copiedContentRef.current.offsetHeight ||
+            copiedContentRef.current.scrollHeight;
+          if (contentH > 0) {
+            setTargetHeight(contentH + 22);
+          }
+        }
+      };
+
+      updateHeight();
+
+      const el = copiedContentRef.current;
+      if (!el || typeof ResizeObserver === "undefined") return;
+      const ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+      return () => ro.disconnect();
+    } else {
+      setTargetHeight(38);
+    }
+  }, [currentState, statePayload.last_text]);
 
   // Don't render anything when idle to avoid any residual visual flash
   if (currentState === "idle") {
@@ -135,6 +162,7 @@ export const FloatingPill: React.FC = () => {
             stopDictation();
           }
         }}
+        style={{ height: `${targetHeight}px` }}
         className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden backdrop-blur-2xl border ${
           currentState === "copied" ? "cursor-default" : "cursor-pointer"
         } ${
@@ -197,7 +225,10 @@ export const FloatingPill: React.FC = () => {
 
         {/* State 3: COPIED TO CLIPBOARD Content */}
         {currentState === "copied" && (
-          <div className="flex flex-col w-full min-w-[310px] animate-in fade-in duration-200 delay-75 fill-mode-both">
+          <div
+            ref={copiedContentRef}
+            className="flex flex-col w-full min-w-[310px] animate-in fade-in duration-200 delay-75 fill-mode-both"
+          >
             {statePayload.last_text && (
               <div className="w-full max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10">
                 <span
