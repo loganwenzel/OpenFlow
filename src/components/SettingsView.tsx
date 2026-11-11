@@ -524,22 +524,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               }}
               options={[
                 {
+                  value: "gemini-3.5-flash-lite",
+                  label: "gemini-3.5-flash-lite",
+                  badge: "Recommended",
+                  description: "Ultra-fast, lowest latency for speech",
+                },
+                {
                   value: "gemini-flash-lite-latest",
                   label: "gemini-flash-lite-latest",
-                  badge: "Recommended",
-                  description: "Ultra-fast, lowest latency for streaming speech",
+                  badge: "Fast",
+                  description: "Latest Flash-Lite release",
                 },
                 {
                   value: "gemini-2.5-flash",
                   label: "gemini-2.5-flash",
                   badge: "Standard",
                   description: "Standard production flash model with high accuracy",
-                },
-                {
-                  value: "gemini-3.5-flash-lite",
-                  label: "gemini-3.5-flash-lite",
-                  badge: "Fast",
-                  description: "Fastest preview model",
                 },
                 {
                   value: "gemini-3.8-flash",
