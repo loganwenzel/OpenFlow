@@ -233,7 +233,7 @@ pub fn synthesize_cmd_v() -> Result<(), String> {
 
 /// Copies text to clipboard and, if a text input is focused (and `auto_paste` is true),
 /// synthesizes Cmd+V to paste at cursor.
-/// Returns `Ok(true)` if pasted into a focused text field, or `Ok(false)` if saved to clipboard only.
+/// Returns `Ok(true)` if pasted into a focused text field, or `Ok(false)` if copied to clipboard only.
 pub fn inject_or_copy_text(text: &str, auto_paste: bool) -> Result<bool, String> {
     let mut clipboard = arboard::Clipboard::new()
         .map_err(|e| format!("Failed to access clipboard: {}", e))?;

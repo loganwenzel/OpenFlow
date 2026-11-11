@@ -117,10 +117,12 @@ export const FloatingPill: React.FC = () => {
 
   const widthClass =
     currentState === "copied"
-      ? "w-auto min-w-[200px] max-w-[440px] px-3.5 py-2.5"
+      ? "w-[340px] px-3.5 py-2.5"
       : currentState === "error"
-      ? "w-auto min-w-[170px] max-w-[320px] px-3.5 py-1.5"
-      : "w-fit px-3.5 py-1.5";
+      ? "w-[240px] px-3.5 py-1.5"
+      : currentState === "recording" && isHandsFree
+      ? "w-[108px] px-3.5 py-1.5"
+      : "w-[80px] px-3.5 py-1.5";
 
   return (
     <div className="w-full h-full flex items-end justify-center pb-5 px-4 bg-transparent select-none overflow-hidden">
@@ -133,7 +135,7 @@ export const FloatingPill: React.FC = () => {
             stopDictation();
           }
         }}
-        className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-[width,max-width,padding,background-color,border-color,box-shadow,transform] duration-250 ease-out backdrop-blur-2xl border ${
+        className={`animate-pill-enter relative ${widthClass} rounded-[20px] transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden backdrop-blur-2xl border ${
           currentState === "copied" ? "cursor-default" : "cursor-pointer"
         } ${
           currentState === "error"
@@ -151,7 +153,7 @@ export const FloatingPill: React.FC = () => {
       >
         {/* State 1 & 2: RECORDING & PROCESSING */}
         {(currentState === "recording" || currentState === "processing") && (
-          <div className="flex items-center gap-2.5 h-6">
+          <div className="flex items-center justify-center gap-2.5 h-6 w-full">
             {/* Morphing Speaking -> Loading Waveform (Constant Width) */}
             <AudioWaveform
               rms={rms}
@@ -193,34 +195,34 @@ export const FloatingPill: React.FC = () => {
           </div>
         )}
 
-        {/* Expandable Recorded Text Area for "copied" state */}
-        {currentState === "copied" && statePayload.last_text && (
-          <div className="max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10 animate-in fade-in duration-200">
-            <span
-              className={isLight ? "text-zinc-800" : "text-neutral-100"}
-            >
-              {statePayload.last_text}
-            </span>
-          </div>
-        )}
-
-        {/* State 3: SAVED TO CLIPBOARD Footer */}
+        {/* State 3: COPIED TO CLIPBOARD Content */}
         {currentState === "copied" && (
-          <div className="flex items-center justify-center w-full gap-1.5 py-0.5 animate-in fade-in duration-200">
-            <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-            <span
-              className={`text-[11.5px] font-medium ${
-                isLight ? "text-zinc-700" : "text-neutral-200"
-              }`}
-            >
-              {statePayload.message || "Saved to clipboard"}
-            </span>
+          <div className="flex flex-col w-full min-w-[310px] animate-in fade-in duration-200 delay-75 fill-mode-both">
+            {statePayload.last_text && (
+              <div className="w-full max-h-[110px] overflow-y-auto pb-2 pr-1 text-[12.5px] leading-relaxed break-words select-text border-b mb-1.5 border-white/10">
+                <span
+                  className={isLight ? "text-zinc-800" : "text-neutral-100"}
+                >
+                  {statePayload.last_text}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-center w-full gap-1.5 py-0.5">
+              <ClipboardCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span
+                className={`text-[11.5px] font-medium ${
+                  isLight ? "text-zinc-700" : "text-neutral-200"
+                }`}
+              >
+                {statePayload.message || "Copied to clipboard"}
+              </span>
+            </div>
           </div>
         )}
 
         {/* State 4: ERROR */}
         {currentState === "error" && (
-          <div className="flex items-center justify-between w-full py-0.5 gap-2">
+          <div className="flex items-center justify-between w-full min-w-[210px] py-0.5 gap-2 animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 truncate">
               <AlertCircle
                 className={`w-3.5 h-3.5 shrink-0 ${

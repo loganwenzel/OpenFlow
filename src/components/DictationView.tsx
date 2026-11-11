@@ -155,7 +155,7 @@ export const DictationView: React.FC<DictationViewProps> = ({
             {dictationState === "copied" && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-medium animate-in fade-in">
                 <ClipboardCheck className="w-3.5 h-3.5" />
-                <span>Saved to clipboard</span>
+                <span>Copied to clipboard</span>
               </div>
             )}
             {dictationState === "recording" ? (

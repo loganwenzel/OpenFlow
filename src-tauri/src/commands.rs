@@ -367,7 +367,7 @@ pub async fn stop_dictation(
                 let copied_payload = DictationStatePayload {
                     state: "copied".to_string(),
                     target_app: Some(target_app),
-                    message: Some("Saved to clipboard".to_string()),
+                    message: Some("Copied to clipboard".to_string()),
                     duration_ms: Some(duration_ms),
                     last_text: Some(clean_text),
                     is_hands_free: None,
