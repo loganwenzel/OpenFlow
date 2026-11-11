@@ -23,7 +23,9 @@ export const SnippetsView: React.FC<SnippetsViewProps> = ({
   onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isBannerVisible, setIsBannerVisible] = useState(true);
+  const [isBannerVisible, setIsBannerVisible] = useState(() => {
+    return localStorage.getItem("openflow:dismissed-banner:snippets") !== "true";
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [triggerInput, setTriggerInput] = useState("");
   const [expansionInput, setExpansionInput] = useState("");
@@ -163,7 +165,10 @@ export const SnippetsView: React.FC<SnippetsViewProps> = ({
           <div className="absolute inset-0 bg-gradient-to-r from-amber-900/25 via-purple-950/30 to-neutral-900/40 pointer-events-none" />
 
           <button
-            onClick={() => setIsBannerVisible(false)}
+            onClick={() => {
+              setIsBannerVisible(false);
+              localStorage.setItem("openflow:dismissed-banner:snippets", "true");
+            }}
             className="absolute top-4 right-4 p-1 rounded-full text-[#9c948e] hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
           >
             <X className="w-4 h-4" />

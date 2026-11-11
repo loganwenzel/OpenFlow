@@ -21,7 +21,9 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
   onRefresh,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [isBannerVisible, setIsBannerVisible] = useState(true);
+  const [isBannerVisible, setIsBannerVisible] = useState(() => {
+    return localStorage.getItem("openflow:dismissed-banner:dictionary") !== "true";
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [termInput, setTermInput] = useState("");
   const [replacementInput, setReplacementInput] = useState("");
@@ -163,7 +165,10 @@ export const DictionaryView: React.FC<DictionaryViewProps> = ({
           <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-orange-500/10 to-transparent pointer-events-none" />
 
           <button
-            onClick={() => setIsBannerVisible(false)}
+            onClick={() => {
+              setIsBannerVisible(false);
+              localStorage.setItem("openflow:dismissed-banner:dictionary", "true");
+            }}
             className="absolute top-4 right-4 p-1 rounded-full text-[#9c948e] hover:text-white hover:bg-white/10 transition-colors cursor-pointer z-10"
           >
             <X className="w-4 h-4" />
