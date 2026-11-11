@@ -1,6 +1,6 @@
 [package]
 name = "openflow"
-version = "0.1.0"
+version = "0.1.1"
 description = "Native macOS AI Dictation App (Wispr Flow Clone)"
 authors = ["Logan"]
 edition = "2021"

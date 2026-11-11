@@ -4,14 +4,14 @@ An open-source **Wispr Flow** alternative for macOS powered directly by the Goog
 
 Just as fast, just as accurate, and **~15x cheaper** than Wispr Flow's monthly subscription — you pay pennies directly to Google per million tokens (~$0.50–$1.00/mo of heavy dictation) instead of $15 USD/month.
 
-[![Download for macOS](https://img.shields.io/badge/Download-macOS%20(Apple%20Silicon)-101014?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.0_aarch64.dmg)
+[![Download for macOS](https://img.shields.io/badge/Download-macOS%20(Apple%20Silicon)-101014?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.1_aarch64.dmg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
 ---
 
 ## ⚡ Quick Install
 
-1. **[Download OpenFlow (.dmg)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.0_aarch64.dmg)** *(Apple Silicon)*  
+1. **[Download OpenFlow (.dmg)](https://github.com/loganwenzel/OpenFlow/releases/latest/download/OpenFlow_0.1.1_aarch64.dmg)** *(Apple Silicon)*  
    *(Or browse releases on the [Releases page](https://github.com/loganwenzel/OpenFlow/releases))*
 2. Drag **OpenFlow** into your **Applications** folder.
 3. Open the app, paste your [Google Gemini API key](https://aistudio.google.com/app/apikey), and grant permissions.
